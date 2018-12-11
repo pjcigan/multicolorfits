@@ -1,0 +1,117 @@
+multicolorfits -- a tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
+version 1.0
+
+
+
+I developed this tool for a variety of reasons.  
+* I was sick of how long it took to get appropriate stretch levels, etc. for files for use in python plotting scripts
+* I wanted a way to colorize images while retaining WCS info -- for plotting axes...
+(Colorizing greyscale images is common with tools like Photoshop and GIMP, but they don't retain the WCS info!)
+* I wanted to expand beyong just the simple pure red + pure green + pure blue combination.
+* I wanted to learn by coding up this class
+* I wanted to experiment -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
+
+
+** Link to my webpage tutorial
+
+Here are some useful resources for downloading some nicely tidied-up fits files suitable for using in this tool:
+    http://chandra.harvard.edu/photo/openFITS/multiwavelength_data.html
+    [catseye,  ic1396a, kepler, m51, m100, m101, tycho]
+
+    https://www.spacetelescope.org/projects/fits_liberator/datasets_archives/
+    [eagle, ngc1068, ngc1569, ngc6302, m12, Andromeda, Antennae, Orion]
+
+
+
+
+
+Combining frames colorized to red, green, and blue is common practice - especially useful for images of the sky taken with filters that roughly correspond to R, G, and B light.  
+<Show image of 'standard' RGB galaxy - e.g., sombrero or one from the NASA downloads page... M101?>
+
+
+HOWEVER - what if you have, say, only two images?  
+<Show image of M101 with only two colors>
+
+Other reasons you may not be satisfied with a simple pure RGB cube: 
+- Maybe your images don't correspond to what your eye normally thinks should be the R,G,B channels (e.g., optical+radio+X-ray)
+- Maybe you want to highlight one of the images or give them a different color to match another plot
+- Maybe you want to include more than 3 images (e.g., some X-ray sources on top of your RGB?)
+    --> Show M51 pure RGB plus x-ray in lime
+- 
+
+
+
+
+
+
+
+Dependencies
+---------------
+numpy
+matplotlib
+astropy
+scipy
+pyface
+PyQt4
+traits, traitsui
+scikit-image (skimage)
+
+
+
+
+
+Usage: 
+----------------------------
+python multicolorfits_gui.py
+
+ --OR interactively--
+
+execfile('.../multicolorfits_gui.py')
+and run the viewer with:
+multicolorfits_viewer().configure_traits()
+
+
+
+
+Features
+----------------------------
+* Can load up to 4 images (you could easily customize it to include more)
+    - Can copy/paste into input box or use file explorer
+* Specify your preferred color for each image:
+    - Type in HEX/HTML color code (or fraction 0.0--1.0)
+    - Use a GUI color picker -- allows interactive color selection
+* Interactively adjust each image's stretch and levels
+    - Stretch functions include linear, square root, squared, log, power, sinh, asinh
+    - Specify data min/max with input boxes, slidebar, or auto min/max & Zscale buttons
+* View each input image separately in the left panel, and the combined image in the right panel
+* Ability to adjust the gamma value (default=2.2)
+* Specify WCS as sexagesimal or degree
+* Can specify WCS tick color with input box or color picker (useful for changing to light ticks with dark background)
+* Use of matplotlib interactive plot buttons (zoom/pan/home/ edit labels/ etc.)
+* Save image (.png, .jpg, .pdf...)
+* Save fits file with RGB channels
+* Print out plot/scale parameters used to the terminal, for use with custom plot commands
+
+
+
+Considerations/Caveats/Limitations
+---------------
+- Works best when your color choices have similar luminance (mixing light and dark colors can do weird things)
+- certain color combos can lead to confusion (for example: red+blue adds to purple, so maybe don't choose red+purple+blue frames)
+- The RGB color gamut is more limited than other colorspaces such as, e.g., CIE LAB
+- I haven't completely finished developing the 'inverted' (white background) RGB feature, so it doesn't behave 100% as expected
+- What you see on the screen will not likely appear the same way on printed paper -- need to convert RGB to CMYK.
+- Currently all input files must have same projetion/pixel grid -- do all your reprojection before loading them
+- This has not yet been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files.  This could be improved in future versions.
+
+
+
+
+
+
+
+
+
+
+
+
