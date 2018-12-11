@@ -23,6 +23,8 @@ Sharing/Customization: Please, play around!  (MIT License)
 
 
 
+![multicolorfits GUI](./images/multicolorfits_viewer_screenshot_kepler.png "multicolorfits GUI")
+
 
 
 # Usage
