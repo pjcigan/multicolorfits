@@ -1,5 +1,7 @@
 multicolorfits -- a tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
+
 version 1.0
+
 Sharing/Customization: Please, play around!  (MIT License)
 
 
@@ -11,12 +13,19 @@ Sharing/Customization: Please, play around!  (MIT License)
 # Dependencies
 
 numpy
+
 matplotlib
+
 astropy
+
 scipy
+
 pyface
+
 PyQt4
+
 traits, traitsui
+
 scikit-image (skimage)
 
 
@@ -77,12 +86,12 @@ When the viewer appears:
 
 
 
-
+-----------------------
 
 
 
 # Motivation
------------------------
+
 
 I developed this tool for a variety of reasons.  
 * I was sick of how long it took to get appropriate stretch levels, etc. for files for use in python plotting scripts
@@ -109,7 +118,7 @@ I will be using the Kepler, M51, M101, M106 data found at the Chandra link above
 
 Combining frames colorized to red, green, and blue is common practice - especially useful for images of the sky taken with filters that roughly correspond to R, G, and B light.  
 <Show image of 'standard' RGB galaxy - e.g., sombrero or one from the NASA downloads page... M101?>
-
+![This looks nice.](./images/m106_pureRGB.png "M106 R,G,B optical bands.")
 
 HOWEVER - what if you have, say, only two images?  Maybe you only have the red and blue, but not the green.  
 ![The overall hue appears to have a purple cast to it...](./images/m51_RBonly.png "M51, with only Red and Blue filter images.")

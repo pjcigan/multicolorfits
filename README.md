@@ -1,5 +1,7 @@
 multicolorfits -- a tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
+
 version 1.0
+
 Sharing/Customization: Please, play around!  (MIT License)
 
 
@@ -11,12 +13,19 @@ Sharing/Customization: Please, play around!  (MIT License)
 # Dependencies
 
 numpy
+
 matplotlib
+
 astropy
+
 scipy
+
 pyface
+
 PyQt4
+
 traits, traitsui
+
 scikit-image (skimage)
 
 
@@ -77,12 +86,12 @@ When the viewer appears:
 
 
 
-
+-----------------------
 
 
 
 # Motivation
------------------------
+
 
 I developed this tool for a variety of reasons.  
 * I was sick of how long it took to get appropriate stretch levels, etc. for files for use in python plotting scripts
@@ -136,7 +145,7 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 
 
 
-
+----------------------------
 
 
 # Considerations/Caveats/Limitations
