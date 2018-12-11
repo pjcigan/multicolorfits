@@ -12,21 +12,14 @@ Sharing/Customization: Please, play around!  (MIT License)
 
 # Dependencies
 
-numpy
-
-matplotlib
-
-astropy
-
-scipy
-
-pyface
-
-PyQt4
-
-traits, traitsui
-
-scikit-image (skimage)
+* numpy
+* matplotlib
+* astropy
+* scipy
+* pyface
+* PyQt4
+* traits, traitsui
+* scikit-image (skimage)
 
 
 
@@ -106,9 +99,9 @@ I made a short tutorial a couple years ago on the basics of colorizing and combi
 
 
 Here are some useful resources for downloading some nicely tidied-up fits files suitable for using in this tool:
-    [Chandra OpenFits page](http://chandra.harvard.edu/photo/openFITS/multiwavelength_data.html)
-    [Fits Liberator Datasets Page](https://www.spacetelescope.org/projects/fits_liberator/datasets_archives/)
-    [LITTLE THINGS (dwarf galaxy survey) data hosted by NRAO](https://science.nrao.edu/science/surveys/littlethings)
+- [Chandra OpenFits page](http://chandra.harvard.edu/photo/openFITS/multiwavelength_data.html)
+- [Fits Liberator Datasets Page](https://www.spacetelescope.org/projects/fits_liberator/datasets_archives/)
+- [LITTLE THINGS (dwarf galaxy survey) data hosted by NRAO](https://science.nrao.edu/science/surveys/littlethings)
 
 I will be using the Kepler, M51, M101, M106 data found at the Chandra link above for the examples below.
 
@@ -145,7 +138,7 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 
 
 
-
+----------------------------
 
 
 # Considerations/Caveats/Limitations
