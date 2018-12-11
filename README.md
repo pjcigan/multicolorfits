@@ -1,4 +1,4 @@
-multicolorfits -- a tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
+multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
 version 1.0
 
@@ -8,6 +8,7 @@ Sharing/Customization: Please, play around!  (MIT License)
 
 -----------------------
 
+![multicolorfits GUI](./images/multicolorfits_viewer_screenshot_kepler.png "multicolorfits GUI")
 
 
 # Dependencies
@@ -23,7 +24,6 @@ Sharing/Customization: Please, play around!  (MIT License)
 
 
 
-![multicolorfits GUI](./images/multicolorfits_viewer_screenshot_kepler.png "multicolorfits GUI")
 
 
 
