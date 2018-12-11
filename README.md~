@@ -1,4 +1,4 @@
-multicolorfits -- a tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
+multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
 version 1.0
 
@@ -8,6 +8,7 @@ Sharing/Customization: Please, play around!  (MIT License)
 
 -----------------------
 
+![multicolorfits GUI](./images/multicolorfits_viewer_screenshot_kepler.png "multicolorfits GUI")
 
 
 # Dependencies
@@ -23,7 +24,6 @@ Sharing/Customization: Please, play around!  (MIT License)
 
 
 
-![multicolorfits GUI](./images/multicolorfits_viewer_screenshot_kepler.png "multicolorfits GUI")
 
 
 
@@ -112,7 +112,6 @@ I will be using the Kepler, M51, M101, M106 data found at the Chandra link above
 
 
 Combining frames colorized to red, green, and blue is common practice - especially useful for images of the sky taken with filters that roughly correspond to R, G, and B light.  
-<Show image of 'standard' RGB galaxy - e.g., sombrero or one from the NASA downloads page... M101?>
 ![This looks nice.](./images/m106_pureRGB.png "M106 R,G,B optical bands.")
 
 HOWEVER - what if you have, say, only two images?  Maybe you only have the red and blue, but not the green.  
@@ -135,7 +134,6 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 
 
 - Maybe you just want to explore display options, like this 'inverted' color combination.
-    --> <show 'inverted' RGB>
 ![Looks interesting, could be better for white background.](./images/m51_RGB_inverse.png "M51 RGB, but 'inverted'.")
 
 

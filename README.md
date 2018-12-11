@@ -92,7 +92,7 @@ I developed this tool for a variety of reasons.
 * I was sick of how long it took to get appropriate stretch levels, etc. for files for use in python plotting scripts
 * It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps want a method for doing things __programmatically__
 * I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes
-* I wanted to expand beyong just the simple pure red + pure green + pure blue combination.
+* I wanted to expand beyong just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a collaborator: "That's weird, stars shouldn't look green...")
 * I wanted to learn by coding up this class
 * I wanted to experiment -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
 
@@ -112,7 +112,6 @@ I will be using the Kepler, M51, M101, M106 data found at the Chandra link above
 
 
 Combining frames colorized to red, green, and blue is common practice - especially useful for images of the sky taken with filters that roughly correspond to R, G, and B light.  
-<Show image of 'standard' RGB galaxy - e.g., sombrero or one from the NASA downloads page... M101?>
 ![This looks nice.](./images/m106_pureRGB.png "M106 R,G,B optical bands.")
 
 HOWEVER - what if you have, say, only two images?  Maybe you only have the red and blue, but not the green.  
@@ -135,7 +134,6 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 
 
 - Maybe you just want to explore display options, like this 'inverted' color combination.
-    --> <show 'inverted' RGB>
 ![Looks interesting, could be better for white background.](./images/m51_RGB_inverse.png "M51 RGB, but 'inverted'.")
 
 
