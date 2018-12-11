@@ -1,8 +1,10 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 1.0
+version 1.1
 
 Sharing/Customization: Please, play around!  (MIT License)
+
+If you find this useful for your work, giving me (Phil Cigan) a shout out in your acknowledgements would be nice.  
 
 
 
@@ -14,7 +16,7 @@ Sharing/Customization: Please, play around!  (MIT License)
 # Dependencies
 
 * numpy
-* matplotlib
+* matplotlib (>= 2.0)
 * astropy
 * scipy
 * pyface
@@ -76,7 +78,7 @@ When the viewer appears:
 * Save image (.png, .jpg, .pdf...)
 * Save fits file with RGB channels
 * Print out plot/scale parameters used to the terminal, for use with custom plot commands
-
+* Can make 'inverse' RGB plots (must click 'Plot Inverted Single' for each component before clicking 'Plot Inverted Combined')
 
 
 
@@ -89,10 +91,10 @@ When the viewer appears:
 
 
 I developed this tool for a variety of reasons.  
-* I was sick of how long it took to get appropriate stretch levels, etc. for files for use in python plotting scripts
+* I was sick of how long it took to manually get appropriate stretch levels, etc. for files for use in python plotting scripts
 * It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps want a method for doing things __programmatically__
 * I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes
-* I wanted to expand beyong just the simple pure red + pure green + pure blue combination.
+* I wanted to expand beyong just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a collaborator: "That's weird, stars shouldn't look green...")
 * I wanted to learn by coding up this class
 * I wanted to experiment -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
 
@@ -143,13 +145,14 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 
 # Considerations/Caveats/Limitations
 
-- For sequential combinations of physical filters/bands (e.g., [G,R,I] images, [J,H,K], etc. ) Works best when your color choices have similar luminance (mixing light and dark colors can do weird things)
-- certain color combos can lead to confusion (for example: red+blue adds to purple, so maybe don't choose red+purple+blue for the hues of your component frames)
+- For sequential combinations of physical filters/bands (e.g., [G,R,I] images, [J,H,K], etc. ), color combos similar to standard R,G,B (such as red+yellow+blue) will usually give the most 'natural'-looking results.  
+- Things tend to work best when your color choices have similar luminance (mixing light and dark colors can do weird things)
+- Certain color combos can lead to confusion (for example: red+blue adds to purple, so maybe don't choose red+purple+blue for the hues of your component frames)
 - The RGB color gamut is more limited than other colorspaces such as, e.g., CIE LAB, so you may not be able to get some specific colors you want
 - I haven't completely finished developing the 'inverted' (white background) RGB feature, so it doesn't behave 100% as expected
 - What you see on the screen will not likely appear the same way on printed paper -- need to convert RGB to CMYK for that.
 - Currently all input files must have same projetion/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that.
-- This has not yet been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files.  This could certainly be improved in future versions.
+- This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files.  This could certainly be improved in future versions.
 
 
 

@@ -132,6 +132,14 @@ def hex_to_hsv(hexstring):
     h = (h/6.0) % 1.0
     return h, s, v #All in fractions in range [0...1]
 
+def hexinv(hexstring):
+    #convenience function to calculate the inverse color (opposite on the color wheel)
+    if hexstring[0]=='#': hexstring=hexstring.lstrip('#')
+    hexcolor=int(hexstring,16)
+    color_comp=0xFFFFFF^hexcolor
+    hexcolor_comp="#%06X"%color_comp
+    return hexcolor_comp
+
 def colorize_image(image, colorvals, colorintype='hsv',dtype=np.float64,gammacorr_color=1):
     ### Add color of the given hue to an RGB greyscale image.
     #colorintype='hsv' [0..1,0..1,0..1],  'rgb' [0..255,0..255,0..255], or 'hex' '#XXXXXX'
@@ -156,18 +164,12 @@ def combine_multicolor(im_list_colorized,gamma=2.2,inverse=False):
     #im_list_colorized: list of colorized images.  e.g., [halpha_purple,co21_orange,sio54_teal]
     #gamma = value used for gamma correction ^1/gamma [default=2.2].  If inverse=True, will automatically use ^gamma instead.
     #inverse=True  will invert the scale so that white is the background
-    if inverse==True:
-        im_list_inv=[adjust_sigmoid(frame,inv=True,gain=1.,cutoff=0.) for frame in im_list_colorized]
-        combined_RGB=LinearStretch()(np.nansum(im_list_inv,axis=0))
-        #combined_RGB=imscale.linear(np.nansum(im_list_inv,axis=0))
-    else: combined_RGB=LinearStretch()(np.nansum(im_list_colorized,axis=0))
-    #else: combined_RGB=imscale.linear(np.nansum(im_list_colorized,axis=0))
+    combined_RGB=LinearStretch()(np.nansum(im_list_colorized,axis=0))
     RGB_maxints=tuple(np.nanmax(combined_RGB[:,:,i]) for i in [0,1,2])
     for i in [0,1,2]: 
-        combined_RGB[:,:,i]=rescale_intensity(combined_RGB[:,:,i], out_range=(0, combined_RGB[:,:,i].max()/np.max(RGB_maxints) ));
-        #combined_RGB[:,:,i]=rescale_intensity(combined_RGB[:,:,i], out_range=(0, RGB_maxints[i] ));
-    if inverse==True: combined_RGB**=gamma #gamma correction
-    else: combined_RGB**=(1./gamma) #gamma correction
+        combined_RGB[:,:,i]=np.nan_to_num(rescale_intensity(combined_RGB[:,:,i], out_range=(0, combined_RGB[:,:,i].max()/np.max(RGB_maxints) )));
+    combined_RGB=LinearStretch()(combined_RGB**(1./gamma)) #gamma correction
+    if inverse==True: combined_RGB=1.-combined_RGB #gamma correction
     return combined_RGB
 
 class _MPLFigureEditor(Editor):
@@ -234,6 +236,7 @@ class ControlPanel(HasTraits):
     #plotbeam_button=Button('Add Beam (FWHM)')
     
     plotbutton_individual = Button(u"Plot Single")
+    plotbutton_inverted_individual = Button(u"Plot Inverted Single")
     clearbutton_individual = Button(u"Clear Single")
     
     status_string_left=Str('')
@@ -264,6 +267,7 @@ class ControlPanel(HasTraits):
             HGroup(
               VGroup(
                      Item('plotbutton_individual', tooltip=u"Plot the single image",show_label=False),
+                     Item('plotbutton_inverted_individual', tooltip=u"Plot the single inverted image",show_label=False),
                      Item('clearbutton_individual', tooltip=u"Clear the single image",show_label=False),
                      Item('_'),
                      
@@ -355,8 +359,11 @@ class ControlPanel(HasTraits):
             except: self.status_string_right = "Color name %s not recognized.  Must be standard mpl.colors string, float[0..1] or #hex string"%(self.imagecolor) 
         try: self.imagecolor_picker=hex_to_rgb(to_hex(self.imagecolor)) #update the picker color...
         except: pass
-        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex')
-        self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
+        ### self.image_greyRGB and self.image_colorRGB may not yet be instantiated if the color is changed before clicking 'plot'
+        try: self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
+        except: pass
+        try: self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
+        except: pass
         self.in_use=True
         self.image_figure.canvas.draw()
     
@@ -373,7 +380,7 @@ class ControlPanel(HasTraits):
         self.datamin = np.nanpercentile(self.data,self.perc_min)
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex')
+        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
         self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
         self.image_figure.canvas.draw()
         self.status_string_right = "Updated scale using percentiles"
@@ -383,7 +390,7 @@ class ControlPanel(HasTraits):
         self.datamax = np.nanpercentile(self.data,self.perc_max)
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex')
+        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
         self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
         self.image_figure.canvas.draw()
         self.status_string_right = "Updated scale using percentiles"
@@ -405,7 +412,7 @@ class ControlPanel(HasTraits):
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         #*** Instead, should I just integrate my imscale class here instead of astropy? ...
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex')
+        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
         
         #self.image_axesimage.norm=self.norm
         ##self.cbar.norm=self.norm
@@ -459,7 +466,7 @@ class ControlPanel(HasTraits):
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         #Convert scale[0,1] image to greyscale RGB image
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex')
+        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
         self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
         ###Using this set instead properly updates the axes labels to WCS, but the home zoom button won't work
         #self.image_figure.clf()
@@ -475,6 +482,20 @@ class ControlPanel(HasTraits):
         self.in_use=True
         
         #self.update_radecpars()
+        self.image_figure.canvas.draw()
+        self.status_string_right = "Plot updated"
+
+    def _plotbutton_inverted_individual_fired(self):
+        try: self.data
+        except: self.status_string_right = "No fits file loaded yet!"; return
+        self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
+        self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
+        self.image_colorRGB=colorize_image(self.image_greyRGB,hexinv(self.imagecolor),colorintype='hex',gammacorr_color=self.gamma)
+        self.image_axesimage.set_data(1.-self.image_colorRGB**(1./2.2)) 
+        self.image_axesimage.set_data(combine_multicolor([self.image_colorRGB,],gamma=self.gamma,inverse=True))  
+        self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
+        self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
+        self.in_use=True
         self.image_figure.canvas.draw()
         self.status_string_right = "Plot updated"
     
@@ -591,6 +612,7 @@ class multicolorfits_viewer(HasTraits):
     sexdec=Enum('Sexagesimal','Decimal')
     
     plotbutton_combined = Button(u"Plot Combined")
+    plotbutton_inverted_combined = Button(u"Plot Inverted Combined")
     clearbutton_combined = Button(u"Clear Combined")
     save_the_image = Button(u"Save Image")
     save_the_fits = Button(u"Save RGB Fits")
@@ -651,6 +673,7 @@ class multicolorfits_viewer(HasTraits):
                   HGroup(
                     
                     Item('plotbutton_combined', tooltip=u"Plot the image",show_label=False),
+                    Item('plotbutton_inverted_combined', tooltip=u"Plot the inverted image",show_label=False),
                     Item('clearbutton_combined',tooltip=u'Clear the combined figure',show_label=False),
                     Item("save_the_image", tooltip=u"Save current image. Mileage may vary...",show_label=False),
                     Item("save_the_fits", tooltip=u"Save RGB frames as single fits file with header.",show_label=False),
@@ -759,6 +782,19 @@ class multicolorfits_viewer(HasTraits):
         self.figure_combined.canvas.draw()
         self.status_string_right = "Plot updated"
     
+    def _plotbutton_inverted_combined_fired(self):
+        try: self.panel1.data
+        except: self.status_string_right = "No fits file loaded yet!"; return
+        self.wcs=WCS(self.panel1.hdr)
+        self.hdr=self.panel1.hdr
+        self.combined_RGB=combine_multicolor( [pan.image_colorRGB for pan in [self.panel1,self.panel2,self.panel3,self.panel4] if pan.in_use==True], gamma=self.gamma, inverse=True)
+        self.figure_combined.clf()
+        self.image_axes = self.figure_combined.add_subplot(111,aspect=1,projection=self.wcs)
+        self.image_axesimage = self.image_axes.imshow(self.combined_RGB, origin='lower',interpolation='nearest')
+        self.update_radecpars()
+        self.figure_combined.canvas.draw()
+        self.status_string_right = "Plot updated"
+        
     def _clearbutton_combined_fired(self): 
         try: del self.combined_RGB #If clear already pressed once, data will already have been deleted...
         except: pass
@@ -846,7 +882,6 @@ if __name__ == '__main__':
 #* Put fields for including titles - overall title on main image, colored interior titles for individual images.
 #* streamline the circular dependencies (datamin/datamax and perc_min/perc_max)
 #* incorporate ability to regrid the images -- OR new version that loads in data arrays that haven't yet been saved to .fits
-#* Inverse button on right panel that makes inverse color (would auto apply to each panel as well)
 #* update manual plotting  param printout button 
 
 
