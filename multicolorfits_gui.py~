@@ -39,7 +39,7 @@ from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from matplotlib.axes import Axes
 from matplotlib.widgets import AxesWidget
-from matplotlib.colors import to_hex
+#from matplotlib.colors import to_hex #Not in mpl<2.0.  Use try statement below, otherwise define workaround
 
 from traits.api import Any, Instance
 from traitsui.qt4.editor import Editor
@@ -140,6 +140,14 @@ def hexinv(hexstring):
     hexcolor_comp="#%06X"%color_comp
     return hexcolor_comp
 
+try: from matplotlib.colors import to_hex #Converts matplotlib colors to hex/html.  Only in mpl>=2.0
+except:
+    def to_hex(c):
+        #For mpl v<2.0
+        import matplotlib.colors as mplc
+        c_hex=mplc.rgb2hex(mplc.colorConverter.to_rgb(c)) #could use to_rgba to keep alpha
+        return c_hex
+    
 def colorize_image(image, colorvals, colorintype='hsv',dtype=np.float64,gammacorr_color=1):
     ### Add color of the given hue to an RGB greyscale image.
     #colorintype='hsv' [0..1,0..1,0..1],  'rgb' [0..255,0..255,0..255], or 'hex' '#XXXXXX'
@@ -299,7 +307,9 @@ class ControlPanel(HasTraits):
         self.in_use=False
         plt.rcParams.update({'font.family': 'serif','xtick.major.size':6,'ytick.major.size':6, \
                              'xtick.major.width':1.,'ytick.major.width':1., \
-                             'xtick.direction':'in','ytick.direction':'in','xtick.top':True, 'ytick.right':True,})
+                             'xtick.direction':'in','ytick.direction':'in'})
+        try: plt.rcParams.update({'xtick.top':True, 'ytick.right':True}) #apparently not in mpl v<2.0...
+        except: pass #Make a workaround for mpl<2.0 later...
         self.datamin_initial=0.; self.datamax_initial=1.; 
         self.datamin=0.; self.datamax=1. #This will be the displayed value of the scaling min/max
         #self.scalemin=0.; self.scalemax=1. #This will be the overall behind-the-scenes scaling min/max

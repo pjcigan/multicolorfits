@@ -1,6 +1,6 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 1.1
+version 1.2
 
 Sharing/Customization: Please, play around!  (MIT License)
 
@@ -16,7 +16,7 @@ If you find this useful for your work, giving me (Phil Cigan) a shout out in you
 # Dependencies
 
 * numpy
-* matplotlib (>= 2.0)
+* matplotlib 
 * astropy
 * scipy
 * pyface
