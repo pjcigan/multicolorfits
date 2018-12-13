@@ -21,6 +21,7 @@ If you find this useful for your work, giving me (Phil Cigan) a shout out in you
 * scipy
 * pyface
 * PyQt4
+* colorsys
 * traits, traitsui
 * scikit-image (skimage)
 

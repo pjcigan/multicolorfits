@@ -5,12 +5,7 @@ http://scipy-cookbook.readthedocs.io/items/EmbeddingInTraitsGUI.html
 http://www.scipy-lectures.org/advanced/traits/index.html#example
 https://gist.github.com/pierre-haessig/9838326
 
-http://docs.enthought.com/chaco/user_manual/annotated_examples.html
-Specifically for 3D data cube: https://github.com/enthought/chaco/tree/master/examples/demo/advanced/data_cube.py
-
 (Examples)
-https://github.com/enthought/chaco/blob/master/examples/demo/basic/image_plot.py
-https://github.com/enthought/chaco/blob/master/examples/demo/basic/image_from_file.py
 http://henrysmac.org/blog/2014/8/19/demo-of-enthoughts-traitsui-with-matplotlib-and-a-popup-menu.html
 Eric Tollerud's traitsUI fitting GUI  https://pythonhosted.org/PyModelFit/over.html#tutorial-examples
 
@@ -59,6 +54,8 @@ from PyQt4.QtGui import QApplication, QMenu
 
 from skimage import color as ski_color
 from skimage.exposure import adjust_gamma, rescale_intensity, adjust_sigmoid
+
+import colorsys
 
 
 ##########################################################################
@@ -160,7 +157,6 @@ def colorize_image(image, colorvals, colorintype='hsv',dtype=np.float64,gammacor
     if colorintype.lower()=='hsv_dict': hue,saturation,v=colorvals['hue'],colorvals['sat'],colorvals['v'],
     else: hue,saturation,v=colorvals
     if gammacorr_color!=1: 
-        import colorsys
         hue,saturation,v=colorsys.rgb_to_hsv(*np.array(colorsys.hsv_to_rgb(hue,saturation,v))**gammacorr_color)
     hsv[:, :, 2] *= v 
     hsv[:, :, 1] = saturation
@@ -215,6 +211,9 @@ class MPLInitHandler(Handler):
         self.ui_info.object.setup_mpl_events()
         return True
 
+
+##### The left side panels #####
+
 class ControlPanel(HasTraits):
     """This is the control panel where the various parameters for the images are specified
     """
@@ -249,16 +248,6 @@ class ControlPanel(HasTraits):
     
     status_string_left=Str('')
     status_string_right=Str('')
-    
-    #def _image_figure_default(self):
-    #    figure = Figure()
-    #    #figure.add_axes([0.05, 0.04, 0.9, 0.92])
-    #    #blankdata=np.zeros([100,100]); blankdata[-1,-1]=1
-    #    self.image_axes = figure.add_subplot(111,aspect=1)
-    #    self.image_axes.axis('off')
-    #    #self.wcs=WCS(); 
-    #    self.xlabel='x'; self.ylabel='y';
-    #    return figure
     
     def __init__(self):
         self._init_params() #Set placeholder things like the WCS, tick color, map units...
@@ -312,24 +301,12 @@ class ControlPanel(HasTraits):
         except: pass #Make a workaround for mpl<2.0 later...
         self.datamin_initial=0.; self.datamax_initial=1.; 
         self.datamin=0.; self.datamax=1. #This will be the displayed value of the scaling min/max
-        #self.scalemin=0.; self.scalemax=1. #This will be the overall behind-the-scenes scaling min/max
-        #self.mapunits='Pixel Value'
-        #self.tickcolor='0.5'#'white', 'black', '0.5'
-        #self.wcs=WCS(); 
-        #self.xlabel='x'; self.ylabel='y'; 
-        #self.image_axes.set_data(np.zeros([100,100]))
     
     def _fresh_image(self): 
-        #self.norm=ImageNormalize(self.image,stretch=scaling_fns['linear']() )
         blankdata=np.zeros([100,100]); blankdata[-1,-1]=1
         return blankdata
     
     def _fitsfile_changed(self):
-        #img = pyfits.open(self.fitsfile)     # Read the fits data
-        #dat = img[0].data
-        #self.hdr  = img[0].header
-        #self.data = dat.copy()
-        #img.close()
         self.data,self.hdr=pyfits.getdata(self.fitsfile,header=True)
         force_hdr_floats(self.hdr) #Ensure that WCS cards such as CDELT are floats instead of strings
         
@@ -348,10 +325,6 @@ class ControlPanel(HasTraits):
         
         self.in_use=True
         
-        #self.wcs = WCS(self.hdr)
-        #self.xlabel='RA'; self.ylabel='DEC'
-        #try: self.mapunits=self.hdr['BUNIT']
-        #except: pass
         
     #@on_trait_change('imagecolor')
     #def update_imagecolor(self): 
@@ -424,20 +397,7 @@ class ControlPanel(HasTraits):
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
         self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
         
-        #self.image_axesimage.norm=self.norm
-        ##self.cbar.norm=self.norm
-        
-        ###Actually, need to replot the whole thing to get the normalization correct IF using colorbar...
-        #self.image_figure.clf()
-        #self.image_axes = self.image_figure.add_subplot(111,aspect=1)#,projection=self.wcs)
-        #self.image_axesimage = self.image_axes.imshow(self.image,interpolation='nearest', norm=self.norm)
         self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
-        #self.image_axesimage.norm.vmin=0; self.image_axesimage.norm.vmax=1.
-        #self.image_axesimage.norm.vmin=self.datamin
-        #self.image_axesimage.norm.vmax=self.datamax
-        #self.update_radecpars()
-        #self.image_axes.set_xlabel(self.xlabel); self.image_axes.set_ylabel(self.ylabel)
-        #self.image_axes.tick_params(axis='both',color=self.tickcolor)
         
         self.in_use=True
         
@@ -454,13 +414,9 @@ class ControlPanel(HasTraits):
         self.status_string_right = "Scale reset to min/max"
     
     def _zscalebutton_fired(self):
-        #print self.datamin,self.datamax
-        #print Zscalevals(self.image)
         tmpZscale=ZScaleInterval().get_limits(self.data)
         self.datamin=float(tmpZscale[0])
         self.datamax=float(tmpZscale[1])
-        #self.image_axesimage.norm.vmin=self.datamin
-        #self.image_axesimage.norm.vmax=self.datamax
         self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
         self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
         #self.image_figure.canvas.draw()
@@ -485,9 +441,6 @@ class ControlPanel(HasTraits):
         
         self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
         self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
-        ##self.perc_min=np.round(self.datamin/(self.datamax_initial-self.datamin_initial)*100,2) #NO!  THIS IS WRONG!
-        ##self.perc_max=np.round(self.datamax/(self.datamax_initial-self.datamin_initial)*100,2)#,2 means to 2 decimal places
-        #self.image_axesimage.norm.vmin=self.datamin; self.image_axesimage.norm.vmax=self.datamax
         
         self.in_use=True
         
@@ -561,44 +514,7 @@ class ControlPanel(HasTraits):
     def on_cursor_enter(self, event): QApplication.setOverrideCursor(Qt.CrossCursor)
 
 
-    
-    
-#    def _start_stop_acquisition_fired(self):
-#        """ Callback of the "start stop acquisition" button. This starts
-#        the acquisition thread, or kills it.
-#        """
-#        if self.acquisition_thread and self.acquisition_thread.isAlive():
-#            self.acquisition_thread.wants_abort = True
-#        else:
-#            self.acquisition_thread = AcquisitionThread()
-#            self.acquisition_thread.display = self.add_line
-#            self.acquisition_thread.acquire = self.camera.acquire
-#            self.acquisition_thread.experiment = self.experiment
-#            self.acquisition_thread.image_show = self.image_show
-#            self.acquisition_thread.results = self.results
-#            self.acquisition_thread.start()
-
-#    def add_line(self, string):
-#        """ Adds a line to the textbox display.
-#        """
-#        self.results_string = (string + "\n" + self.results_string)[0:1000]
-
-#    def image_show(self, image):
-#        """ Plots an image on the canvas in a thread safe way.
-#        """
-#        self.figure.axes[0].images=[]
-#        self.figure.axes[0].imshow(image, aspect='auto')
-#        wx.CallAfter(self.figure.canvas.draw)
-
-#class MainWindowHandler(Handler):
-#    def close(self, info, is_OK):
-#        if ( info.object.panel.acquisition_thread
-#            and info.object.panel.acquisition_thread.isAlive() ):
-#            info.object.panel.acquisition_thread.wants_abort = True
-#            while info.object.panel.acquisition_thread.isAlive():
-#                sleep(0.1)
-#            wx.Yield()
-#        return True
+##### The main viewer #####
 
 class multicolorfits_viewer(HasTraits):
     """The main window. Has instructions for creating and destroying the app.
@@ -631,15 +547,6 @@ class multicolorfits_viewer(HasTraits):
     status_string_left = Str('')
     status_string_right = Str('')
     
-    #def _figure_combined_default(self):
-    #    figure = Figure()
-    #    #figure.add_axes([0.05, 0.04, 0.9, 0.92])
-    #    blankdata=np.zeros([100,100]); blankdata[-1,-1]=1
-    #    self.image_axes = figure.add_subplot(111,aspect=1)
-    #    self.wcs=WCS(); 
-    #    self.xlabel='x'; self.ylabel='y';
-    #    return figure
-
     def _panel1_default(self):
         return ControlPanel()#figure=self.figure)
     def _panel2_default(self):
@@ -658,6 +565,9 @@ class multicolorfits_viewer(HasTraits):
         self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray',origin='lower',interpolation='nearest')
         self.image_axes.set_xlabel(self.xlabel); self.image_axes.set_ylabel(self.ylabel)
         self.image_axes.tick_params(axis='both',color=self.tickcolor) #colors=... also sets label color
+        try: self.image_axes.coords.frame.set_color(self.tickcolor) #Updates the frame color.  .coords won't exist until WCS set
+        except: 
+            [self.image_axes.spines[s].set_color(self.tickcolor) for s in ['top','bottom','left','right']]
     
     view = View(Item("gamma",label=u"Gamma",show_label=True), 
                 Item('_'),
@@ -720,7 +630,7 @@ class multicolorfits_viewer(HasTraits):
         self.decpars = self.image_axes.coords[1]
         self.rapars.set_ticks(color=self.tickcolor); self.decpars.set_ticks(color=self.tickcolor)
         self.rapars.set_ticks(number=6); self.decpars.set_ticks(number=6); 
-        #self.rapars.set_ticklabel(size=8); self.decpars.set_ticklabel(size=8); 
+        #self.rapars.set_ticklabel(size=8); self.decpars.set_ticklabel(size=8); #size here means the tick length
         ##self.rapars.set_ticks(spacing=10*u.arcmin, color='white', exclude_overlapping=True)
         ##self.decpars.set_ticks(spacing=5*u.arcmin, color='white', exclude_overlapping=True)
         self.rapars.display_minor_ticks(True); #self.rapars.set_minor_frequency(10)
@@ -745,13 +655,16 @@ class multicolorfits_viewer(HasTraits):
             #--> Need to do this first, otherwise traits throws a fit up the stack even despite the try/except check
             globals()[self.tickcolor] #This check should catch undefined inputs
             self.image_axes.tick_params(axis='both',color=globals()[self.tickcolor])
+            self.image_axes.coords.frame.set_color(self.tickcolor)
             self.tickcolor_picker=hex_to_rgb(globals()[self.tickcolor])
             self.status_string_right = 'Tick color changed to '+self.tickcolor
         except:
             try: 
                 self.tickcolor=to_hex(self.tickcolor)
                 try: self.update_radecpars()
-                except: self.image_axes.tick_params(axis='both',color=to_hex(self.tickcolor)); 
+                except: 
+                    self.image_axes.tick_params(axis='both',color=to_hex(self.tickcolor)); 
+                    self.image_axes.coords.frame.set_color(to_hex(self.tickcolor));
                 self.status_string_right = 'Tick color changed to '+self.tickcolor
             except: self.status_string_right = "Color name %s not recognized.  Must be standard mpl.colors string, float[0..1] or #hex string"%(self.tickcolor) 
         try: self.tickcolor_picker=hex_to_rgb(to_hex(self.tickcolor)) #update the picker color...
@@ -786,10 +699,6 @@ class multicolorfits_viewer(HasTraits):
         self.image_axes = self.figure_combined.add_subplot(111,aspect=1,projection=self.wcs)
         self.image_axesimage = self.image_axes.imshow(self.combined_RGB, origin='lower',interpolation='nearest')
         
-        #self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
-        #self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
-        #self.image_axesimage.norm.vmin=self.datamin; self.image_axesimage.norm.vmax=self.datamax
-        
         self.update_radecpars()
         self.figure_combined.canvas.draw()
         self.status_string_right = "Plot updated"
@@ -818,6 +727,7 @@ class multicolorfits_viewer(HasTraits):
         self.xlabel='x'; self.ylabel='y'
         self.image_axes.set_xlabel(self.xlabel); self.image_axes.set_ylabel(self.ylabel)
         self.image_axes.tick_params(axis='both',color=self.tickcolor)
+        self.image_axes.coords.frame.set_color(self.tickcolor)
         self.figure_combined.canvas.draw()
         self.status_string_right = "Plot cleared"
         
@@ -894,6 +804,9 @@ if __name__ == '__main__':
 #* Put fields for including titles - overall title on main image, colored interior titles for individual images.
 #* streamline the circular dependencies (datamin/datamax and perc_min/perc_max)
 #* incorporate ability to regrid the images -- OR new version that loads in data arrays that haven't yet been saved to .fits
+#* Options for plot text font (size, dropdown menu for font type which queries those available)
+#* Include options for tick length/width
+#* Include options for displaying coordinate grid (thin lines over the image) - color and maybe transparency to control on/off
 #* update manual plotting  param printout button 
 
 
