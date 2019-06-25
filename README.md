@@ -2,6 +2,8 @@ multicolorfits -- a GUI tool to colorize and combine multiple fits images for ma
 
 version 1.2
 
+[![DOI](https://zenodo.org/badge/161317587.svg)](https://zenodo.org/badge/latestdoi/161317587)
+
 Sharing/Customization: Please, play around!  (MIT License)
 
 If you find this useful for your work, giving me (Phil Cigan) a shout out in your acknowledgements would be nice.  
@@ -76,6 +78,7 @@ When the viewer appears:
 * Specify WCS as sexagesimal or degree
 * Can specify WCS tick color with input box or color picker (useful for changing to light ticks with dark background)
 * Use of matplotlib interactive plot buttons (zoom/pan/home/ edit labels/ etc.)
+* The main window (right panel) has a status bar that prints out the cursor's current position in world coordinates, and also prints out the R,G,B values at that pixel.
 * Save image (.png, .jpg, .pdf...)
 * Save fits file with RGB channels
 * Print out plot/scale parameters used to the terminal, for use with custom plot commands
@@ -95,7 +98,7 @@ I developed this tool for a variety of reasons.
 * I was sick of how long it took to manually get appropriate stretch levels, etc. for files for use in python plotting scripts
 * It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps want a method for doing things __programmatically__
 * I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes
-* I wanted to expand beyong just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a collaborator: "That's weird, stars shouldn't look green...")
+* I wanted to expand beyond just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a collaborator: "That's weird, stars shouldn't look green...")
 * I wanted to learn by coding up this class
 * I wanted to experiment -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
 
@@ -107,6 +110,8 @@ Here are some useful resources for downloading some nicely tidied-up fits files 
 - [Chandra OpenFits page](http://chandra.harvard.edu/photo/openFITS/multiwavelength_data.html)
 - [Fits Liberator Datasets Page](https://www.spacetelescope.org/projects/fits_liberator/datasets_archives/)
 - [LITTLE THINGS (dwarf galaxy survey) data hosted by NRAO](https://science.nrao.edu/science/surveys/littlethings)
+- [SkyView (Virtual Observatory)](https://skyview.gsfc.nasa.gov/current/cgi/titlepage.pl)
+- [Sloan Digital Sky Survey (SDSS) Sky Server](http://skyserver.sdss.org/dr15/en/tools/explore/Summary.aspx?)
 
 I will be using the Kepler, M51, M101, M106 data found at the Chandra link above for the examples below.
 
@@ -152,7 +157,7 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 - The RGB color gamut is more limited than other colorspaces such as, e.g., CIE LAB, so you may not be able to get some specific colors you want
 - I haven't completely finished developing the 'inverted' (white background) RGB feature, so it doesn't behave 100% as expected
 - What you see on the screen will not likely appear the same way on printed paper -- need to convert RGB to CMYK for that.
-- Currently all input files must have same projetion/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that.
+- Currently all input files must have same projection/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that.
 - This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files.  This could certainly be improved in future versions.
 
 

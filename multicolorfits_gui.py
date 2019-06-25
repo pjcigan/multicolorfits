@@ -1,3 +1,7 @@
+### multicolorfits
+### v1.2
+### written by Phil Cigan
+
 """
 Some resources for now: traits(ui) and chaco --> Though probably don't want to use Chaco asmy normal code uses matplotlib
 https://docs.enthought.com/traitsui/tutorials/traits_ui_scientific_app.html
@@ -229,8 +233,8 @@ class ControlPanel(HasTraits):
     
     datamin= Float(0.0,auto_set=False,enter_set=True) #Say, in mJy
     datamax= Float(1.0,auto_set=False,enter_set=True) #auto_set=input set on each keystroke, enter_set=set after Enter
-    perc_min=Range(value=0.0, low=0.0, high=100.); 
-    perc_max=Range(value=100.0, low=0.0, high=100.) #Percentile of data values for rescaling
+    percent_min=Range(value=0.0, low=0.0, high=100.); 
+    percent_max=Range(value=100.0, low=0.0, high=100.) #Percentile of data values for rescaling
     minmaxbutton=Button('Min/Max')
     zscalebutton=Button('Zscale')
     
@@ -278,8 +282,8 @@ class ControlPanel(HasTraits):
             ),
             HGroup(Item('datamin', tooltip=u"Minimum data val for scaling", show_label=True),
                    Item('datamax', tooltip=u"Maximum data val for scaling", show_label=True)),
-            Item('perc_min', tooltip=u"Min. percentile for scaling", show_label=True),
-            Item('perc_max', tooltip=u"Max. percentile for scaling", show_label=True),
+            Item('percent_min', tooltip=u"Min. percentile for scaling", show_label=True),
+            Item('percent_max', tooltip=u"Max. percentile for scaling", show_label=True),
             HGroup(Item('minmaxbutton', tooltip=u"Reset to data min/max", show_label=False),
                    Item('zscalebutton', tooltip=u"Compute scale min/max from zscale algorithm", show_label=False)),
             Item('scale_dropdown',label='Scale',show_label=True),
@@ -357,20 +361,20 @@ class ControlPanel(HasTraits):
         self.imagecolor=self.imagecolor_picker.name()
     
     
-    #@on_trait_change('perc_min')
+    #@on_trait_change('percent_min')
     #def update_scalepercmin(self):
-    def _perc_min_changed(self):
-        self.datamin = np.nanpercentile(self.data,self.perc_min)
+    def _percent_min_changed(self):
+        self.datamin = np.nanpercentile(self.data,self.percent_min)
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
         self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
         self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
         self.image_figure.canvas.draw()
         self.status_string_right = "Updated scale using percentiles"
-    #@on_trait_change('perc_max')
+    #@on_trait_change('percent_max')
     #def update_scalepercmax(self):
-    def _perc_max_changed(self):
-        self.datamax = np.nanpercentile(self.data,self.perc_max)
+    def _percent_max_changed(self):
+        self.datamax = np.nanpercentile(self.data,self.percent_max)
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
         self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
@@ -381,11 +385,11 @@ class ControlPanel(HasTraits):
     ### Very slow to update datamin and datamax as well as percs... Can comment these if desired and just hit plot after datamin
     
     #@on_trait_change('datamin')
-    #def update_datamin(self): self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
-    def _datamin_changed(self): self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
+    #def update_datamin(self): self.percent_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
+    def _datamin_changed(self): self.percent_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
     #@on_trait_change('datamax')
-    #def update_datamax(self): self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
-    def _datamax_changed(self): self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
+    #def update_datamax(self): self.percent_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
+    def _datamax_changed(self): self.percent_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
     
     #@on_trait_change('scale_dropdown')
     #def update_image_scale(self):
@@ -408,8 +412,8 @@ class ControlPanel(HasTraits):
         self.datamin=self.datamin_initial; self.datamax=self.datamax_initial
         #self.image_axesimage.norm.vmin=self.datamin
         #self.image_axesimage.norm.vmax=self.datamax
-        self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
-        self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
+        self.percent_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
+        self.percent_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
         #self.image_figure.canvas.draw()
         self.status_string_right = "Scale reset to min/max"
     
@@ -417,8 +421,8 @@ class ControlPanel(HasTraits):
         tmpZscale=ZScaleInterval().get_limits(self.data)
         self.datamin=float(tmpZscale[0])
         self.datamax=float(tmpZscale[1])
-        self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
-        self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
+        self.percent_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
+        self.percent_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
         #self.image_figure.canvas.draw()
         self.status_string_right = "Min/max determined by zscale"
     
@@ -439,8 +443,8 @@ class ControlPanel(HasTraits):
         #self.image_axes = self.image_figure.add_subplot(111,aspect=1)#,projection=self.wcs)
         #self.image_axesimage = self.image_axes.imshow(self.image, cmap=self.image_cmap,origin='lower',interpolation='nearest', norm=self.norm)
         
-        self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
-        self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
+        self.percent_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
+        self.percent_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
         
         self.in_use=True
         
@@ -454,10 +458,10 @@ class ControlPanel(HasTraits):
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
         self.image_colorRGB=colorize_image(self.image_greyRGB,hexinv(self.imagecolor),colorintype='hex',gammacorr_color=self.gamma)
-        self.image_axesimage.set_data(1.-self.image_colorRGB**(1./2.2)) 
+        #self.image_axesimage.set_data(1.-self.image_colorRGB**(1./self.gamma)) 
         self.image_axesimage.set_data(combine_multicolor([self.image_colorRGB,],gamma=self.gamma,inverse=True))  
-        self.perc_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
-        self.perc_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
+        self.percent_min=np.round(percentileofscore(self.data.ravel(),self.datamin,kind='strict'),2)
+        self.percent_max=np.round(percentileofscore(self.data.ravel(),self.datamax,kind='strict'),2)
         self.in_use=True
         self.image_figure.canvas.draw()
         self.status_string_right = "Plot updated"
@@ -708,7 +712,7 @@ class multicolorfits_viewer(HasTraits):
         except: self.status_string_right = "No fits file loaded yet!"; return
         self.wcs=WCS(self.panel1.hdr)
         self.hdr=self.panel1.hdr
-        self.combined_RGB=combine_multicolor( [pan.image_colorRGB for pan in [self.panel1,self.panel2,self.panel3,self.panel4] if pan.in_use==True], gamma=self.gamma, inverse=True)
+        self.combined_RGB=combine_multicolor( [pan.image_colorRGB for pan in [self.panel1,self.panel2,self.panel3,self.panel4] if pan.in_use==True], inverse=True, gamma=self.gamma, )
         self.figure_combined.clf()
         self.image_axes = self.figure_combined.add_subplot(111,aspect=1,projection=self.wcs)
         self.image_axesimage = self.image_axes.imshow(self.combined_RGB, origin='lower',interpolation='nearest')
@@ -727,7 +731,8 @@ class multicolorfits_viewer(HasTraits):
         self.xlabel='x'; self.ylabel='y'
         self.image_axes.set_xlabel(self.xlabel); self.image_axes.set_ylabel(self.ylabel)
         self.image_axes.tick_params(axis='both',color=self.tickcolor)
-        self.image_axes.coords.frame.set_color(self.tickcolor)
+        try: self.image_axes.coords.frame.set_color(self.tickcolor)
+        except: self.tickcolor_picker=hex_to_rgb(to_hex(self.tickcolor))
         self.figure_combined.canvas.draw()
         self.status_string_right = "Plot cleared"
         
@@ -802,11 +807,13 @@ if __name__ == '__main__':
 ### TODO wishlist ###
 
 #* Put fields for including titles - overall title on main image, colored interior titles for individual images.
-#* streamline the circular dependencies (datamin/datamax and perc_min/perc_max)
+#* streamline the circular dependencies (datamin/datamax and percent_min/percent_max)
 #* incorporate ability to regrid the images -- OR new version that loads in data arrays that haven't yet been saved to .fits
 #* Options for plot text font (size, dropdown menu for font type which queries those available)
 #* Include options for tick length/width
 #* Include options for displaying coordinate grid (thin lines over the image) - color and maybe transparency to control on/off
+#* Option for GLON/GLAT or others
+#* Button to plot final image in greyscale (for printing), and maybe for colorblindness varieties?
 #* update manual plotting  param printout button 
 
 
