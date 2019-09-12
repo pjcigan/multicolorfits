@@ -5,7 +5,7 @@ Here are some tutorials of how to create multicolor images in a script.  (Click 
 - [NGC 602](./examples/ngc602.md)
 This example demonstrates how to script the process of making a multi-color RGB image from fits files that are all projected onto the same pixel grid.   
 
-![ ](./images/n602_POB.jpg "NGC 602 IR, R, and B in purple, orange, and blue.")
+<img src="./images/n602_POB.jpg" width="400"/> <img src="./images/n602_POB_inverse.jpg" width="400"/> 
 
 ------------------
 

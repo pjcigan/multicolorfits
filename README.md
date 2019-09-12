@@ -22,22 +22,33 @@ If you find this useful for your work, giving me (Phil Cigan) a nod in your ackn
 * astropy
 * scipy
 * pyface
-* PyQt5 (PyQt4 may still work)
+* PyQt5 (PyQt4 should still work)
 * colorsys
 * traits, traitsui
 * scikit-image (skimage)
 
-* reproject and/or kapteyn, for the optional reprojection convenience functions
+* reproject and/or kapteyn, for the optional reprojection convenience functions (montagepy suppport may be added in the future)
 
 
 
 
 # Installation
 
-To use as a standalone script in a particular directory, simply save a copy of multicolorfits.py there.
+No specific installation procedure is necessary, other than downloading multicolorfits.py :
 
-To make it available for import, 
+1. You can simply save a copy of multicolorfits.py in a local working directory.  This is suitable for running it in standalone mode (from the terminal). 
 
+2. To make it available for import (in scripts or ipython), 'install' it by adding it to your python path. 
+    
+To add to your path, either save a copy in a directory that's already part of the path, or include a new directory by updating your rc files with something like:
+(for .bashrc) 
+```console
+export PYTHONPATH=$PYTHONPATH:/path/to/dir/with/mcf/
+```
+(for .cshrc)
+```console
+setenv PYTHONPATH ${PYTHONPATH}:/path/to/dir/with/mcf/
+```
 
 # Usage
 
@@ -66,6 +77,11 @@ When the viewer appears:
 4. If desired, use buttons at the bottom right to print some of the plot params, save as image, or save as a fits RGB cube.
 
 
+# Tutorials / Examples 
+
+[Follow this link for some multicolorfits tutorials](./examples.md)
+
+Also see some more example images below.
 
 
 
@@ -93,13 +109,18 @@ When the viewer appears:
 
 
 
+# Spotted in the wild
+
+Here are some plots out in the real world that were made with multicolorfits
+
+* [Watkins+2019, A&A, 628A, 21](https://arxiv.org/abs/1906.09275) -- [Figure 1](https://www.aanda.org/articles/aa/full_html/2019/08/aa35277-19/F1.html)
+
 
 -----------------------
 
 
 
 # Motivation
-
 
 I developed this tool for a variety of reasons.  
 * I was sick of how long it took to manually get appropriate stretch levels, etc. for files for use in python plotting scripts
