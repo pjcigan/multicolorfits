@@ -1,12 +1,12 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 1.2
+version 2.0
 
 [![DOI](https://zenodo.org/badge/161317587.svg)](https://zenodo.org/badge/latestdoi/161317587)
 
 Sharing/Customization: Please, play around!  (MIT License)
 
-If you find this useful for your work, giving me (Phil Cigan) a shout out in your acknowledgements would be nice.  
+If you find this useful for your work, giving me (Phil Cigan) a nod in your acknowledgements would be nice.  
 
 
 
@@ -22,14 +22,21 @@ If you find this useful for your work, giving me (Phil Cigan) a shout out in you
 * astropy
 * scipy
 * pyface
-* PyQt4
+* PyQt5 (PyQt4 may still work)
 * colorsys
 * traits, traitsui
 * scikit-image (skimage)
 
+* reproject and/or kapteyn, for the optional reprojection convenience functions
 
 
 
+
+# Installation
+
+To use as a standalone script in a particular directory, simply save a copy of multicolorfits.py there.
+
+To make it available for import, 
 
 
 # Usage
@@ -37,14 +44,14 @@ If you find this useful for your work, giving me (Phil Cigan) a shout out in you
 Standalone, from a terminal:
 
 ```console
-python multicolorfits_gui.py
+python multicolorfits.py
 ```
 
 Alternatively, call it interactively from within e.g., ipython:
 
 ```python
-execfile('.../multicolorfits_gui.py')
-multicolorfits_viewer().configure_traits()  #This actually runs the viewer
+import multicolorfits as mcf
+mcf.mcf_gui()  #This actually runs the viewer
 ```
 
 
@@ -66,7 +73,7 @@ When the viewer appears:
 
 * Can load up to 4 images (you could easily customize it to include more)
     - Can copy/paste into input box or use file explorer
-    - **__Note:__** At the moment, all input images must share a common pixel grid (no reprojection is done on the fly)
+    - **__Note:__** At the moment, all input images must share a common pixel grid (no reprojection is done on the fly, though functions are included to do this manually in scripts)
 * Specify your preferred color for each image:
     - Type in HEX/HTML color code (or fraction 0.0--1.0 for shades of grey)
     - Use a GUI color picker -- allows interactive color selection
@@ -99,8 +106,7 @@ I developed this tool for a variety of reasons.
 * It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps want a method for doing things __programmatically__
 * I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes
 * I wanted to expand beyond just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a collaborator: "That's weird, stars shouldn't look green...")
-* I wanted to learn by coding up this class
-* I wanted to experiment -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
+* I wanted to experiment with non-standard display options -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
 
 
 I made a short tutorial a couple years ago on the basics of colorizing and combining fits images, which should provide a decent starting point: [http://research.endlessfernweh.com/multi-color-images/](http://research.endlessfernweh.com/multi-color-images/)  
@@ -157,8 +163,8 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 - The RGB color gamut is more limited than other colorspaces such as, e.g., CIE LAB, so you may not be able to get some specific colors you want
 - I haven't completely finished developing the 'inverted' (white background) RGB feature, so it doesn't behave 100% as expected
 - What you see on the screen will not likely appear the same way on printed paper -- need to convert RGB to CMYK for that.
-- Currently all input files must have same projection/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that.
-- This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files.  This could certainly be improved in future versions.
+- Currently all input files must have same projection/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that. See the WLM package for example usage with multicolorfits.
+- This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files. (UN-checking the Auto-Refresh button will help.)  This could certainly be improved in future versions.
 
 
 
