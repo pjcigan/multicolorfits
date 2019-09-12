@@ -46,7 +46,7 @@ wlm_hihdr_simple=mcf.makesimpleheader(wlm_hihdr,radesys='FK5')
 #cropcenter_coords(0.4908176671,-15.47142427)
 ## Could also just get the coords from a pixel location -- here let's take the center pixel:
 cropcenter_coords=mcf.convpix2sky(wlm_hihdr_simple,512,512) #[0.4908176822975695, -15.464166666280857]
-cropwidth_asec=600. #width to extend in either direction from the reference coords arcsec (i.e., half-width) 
+cropwidth_asec=600. #width to extend in either direction from the reference coords (i.e., half-width) 
 ```
 
 - Now crop the image using the convenience function cropfits2D(), and specify a save path so that we can save a copy to use in the GUI if we want
@@ -57,8 +57,10 @@ wlm_hicropdat,wlm_hicrophdr=mcf.cropfits2D_coords(wlm_hidat, wlm_hihdr_simple,
 
 - Reproject the other two images to the same (new/cropped) header, and save copies for use in the GUI.
 Reprojection can be done using the kapteyn package reproject2D(...,option='kapteyn') or with the reproject package -- 
-   option='interp' for reproject_interp [default]   or 
-   option='spi' for reproject_exact    See the kapteyn and reproject package documentation for more info
+   - option='interp' for reproject_interp [default]   or 
+   - option='spi' for reproject_exact    
+   See the kapteyn and reproject package documentation for more info
+   
 ```python
 wlm_vcropdat=mcf.reproject2D(wlm_vdat,mcf.makesimpleheader(wlm_vhdr),wlm_hicrophdr);
 pyfits.writeto('./wlm_vcrop.fits',wlm_vcropdat,wlm_hicrophdr,overwrite=True)
@@ -115,6 +117,7 @@ mcf.plotsinglemulticolorRGB(wlm_RYB, wlm_hicrophdr, 'WLM -- HI (red), V (yellow)
 ```
 
 Here is the result:
+
 ![Suitable for public consumption.](../images/WLM_testplot.jpg "WLM  HI, V, and NUV in red, yellow, and blue.")
 
 
@@ -122,7 +125,9 @@ Here is the result:
 ```python
 # --> Rather than re-scale each original image, just take one of the greyRGB frames from each
 wlm_pureRGB=np.dstack([hi_greyRGB[:,:,0],v_greyRGB[:,:,0],nuv_greyRGB[:,:,0]])
-mcf.comparemulticolorRGB_pureRGB(wlm_pureRGB,wlm_RYB,wlm_hicrophdr,'Custom Multicolor: RYB',"WLM",'./wlm_compare.jpg',tickcolor='0.6',supy=.75)
+
+mcf.comparemulticolorRGB_pureRGB(wlm_pureRGB, wlm_RYB,wlm_hicrophdr, 
+    'Custom Multicolor: RYB',"WLM", './wlm_compare.jpg', tickcolor='0.6', supy=.75)
 ```
 ![Easier on the eyes.](../images/wlm_compare.jpg "WLM  HI, V, and NUV. Simple RGB vs. custom RYB.")
 
