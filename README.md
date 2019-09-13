@@ -2,7 +2,8 @@ multicolorfits -- a GUI tool to colorize and combine multiple fits images for ma
 
 version 2.0
 
-[![DOI](https://zenodo.org/badge/161317587.svg)](https://zenodo.org/badge/latestdoi/161317587)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3256060.svg)](https://doi.org/10.5281/zenodo.3256060)
+
 
 Sharing/Customization: Please, play around!  (MIT License)
 

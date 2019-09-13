@@ -4,7 +4,9 @@
 
 * Updated to use in python 3 or python 2. (Tested in 3.6.8 and 2.7.6)
 * Updated to PyQt5 
-* Preferred usage is now either 1. run multicolorfits.py from terminal, or 2. import and run GUI with multicolorfits.mcf_gui()  
+* Preferred usage is now either 
+    1. run multicolorfits.py from terminal, or 
+    2. import and run GUI with multicolorfits.mcf_gui()  
 * Added several functions to aid scripting (outside of the GUI)
     - reprojection to specified image header (requires reproject package or kapteyn package)
     - cropping by specifying coordinates and desired size
