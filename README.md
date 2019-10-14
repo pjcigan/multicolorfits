@@ -16,6 +16,11 @@ If you find this useful for your work, giving me (Phil Cigan) a nod in your ackn
 ![multicolorfits GUI](./images/multicolorfits_viewer_screenshot_kepler.png "multicolorfits GUI")
 
 
+API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
+
+
+
+
 # Dependencies
 
 * numpy
@@ -23,48 +28,41 @@ If you find this useful for your work, giving me (Phil Cigan) a nod in your ackn
 * astropy
 * scipy
 * pyface
-* PyQt5 (PyQt4 should still work)
-* colorsys
+* PyQt5 (PyQt4 should still work) 
 * traits, traitsui
 * scikit-image (skimage)
 
 * reproject and/or kapteyn, for the optional reprojection convenience functions (montagepy suppport may be added in the future)
 
-
+- Tested in python 3.7 (and python 3.4 & 2.7 with PyQt4)
 
 
 # Installation
 
-No specific installation procedure is necessary, other than downloading multicolorfits.py :
-
-1. You can simply save a copy of multicolorfits.py in a local working directory.  This is suitable for running it in standalone mode (from the terminal). 
-
-2. To make it available for import (in scripts or ipython), 'install' it by adding it to your python path. 
-    
-To add to your path, either save a copy in a directory that's already part of the path, or include a new directory by updating your rc files with something like:
-(for .bashrc) 
+Install with pip
 ```console
-export PYTHONPATH=$PYTHONPATH:/path/to/dir/with/mcf/
+pip install multicolorfits
 ```
-(for .cshrc)
-```console
-setenv PYTHONPATH ${PYTHONPATH}:/path/to/dir/with/mcf/
-```
+
+Alternatively, you can simply save a copy of multicolorfits.py in a local working directory.  This is suitable for running it in standalone mode (from the terminal), and does not require a regular installation with pip. 
+
 
 # Usage
 
-Standalone, from a terminal:
-
-```console
-python multicolorfits.py
-```
-
-Alternatively, call it interactively from within e.g., ipython:
+To call it interactively from within e.g., ipython:
 
 ```python
 import multicolorfits as mcf
 mcf.mcf_gui()  #This actually runs the viewer
 ```
+
+
+Alternatively, can be used as a standalone script, from a terminal:
+
+```console
+python multicolorfits.py
+```
+
 
 
 When the viewer appears:
@@ -140,8 +138,10 @@ Here are some useful resources for downloading some nicely tidied-up fits files 
 - [LITTLE THINGS (dwarf galaxy survey) data hosted by NRAO](https://science.nrao.edu/science/surveys/littlethings)
 - [SkyView (Virtual Observatory)](https://skyview.gsfc.nasa.gov/current/cgi/titlepage.pl)
 - [Sloan Digital Sky Survey (SDSS) Sky Server](http://skyserver.sdss.org/dr15/en/tools/explore/Summary.aspx?)
+- [Tom Williams' data_buttons, a very useful tool for grabbing data for your favorite target](https://github.com/thomaswilliamsastro/data_buttons)
 
 I will be using the Kepler, M51, M101, M106 data found at the Chandra link above for the examples below.
+
 
 
 
