@@ -2,7 +2,7 @@
 ### v2.0
 ### written by Phil Cigan
 __author__ = "Phil Cigan <ciganp@cardiff.ac.uk>"
-__version__ = "2.0"
+__version__ = "2.0.1"
 
 
 #Some resources for now: traits(ui) and chaco --> Though probably don't want to use Chaco as my normal code uses matplotlib
@@ -1044,7 +1044,7 @@ def combine_multicolor(im_list_colorized,gamma=2.2,inverse=False):
     im_list_colorized : list 
         List of colorized RGB images.  e.g., [ halpha_purple, co21_orange, sio54_teal ]
     gamma : float 
-        Value used for gamma correction ^1/gamma.  Default=2.2.  If inverse=True, will automatically use ^gamma instead.
+        Value used for gamma correction ^1/gamma.  Default=2.2.  
     inverse : bool  
         True will invert the scale so that white is the background
     
@@ -1054,7 +1054,8 @@ def combine_multicolor(im_list_colorized,gamma=2.2,inverse=False):
         Colorized RGB image (combined), shape=[ypixels,xpixels,3]
     """
     combined_RGB=LinearStretch()(np.nansum(im_list_colorized,axis=0))
-    RGB_maxints=tuple(np.nanmax(combined_RGB[:,:,i]) for i in [0,1,2])
+    if inverse==True: RGB_maxints=tuple(1.-np.nanmax(combined_RGB[:,:,i]) for i in [0,1,2])
+    else: RGB_maxints=tuple(np.nanmax(combined_RGB[:,:,i]) for i in [0,1,2])
     for i in [0,1,2]: 
         combined_RGB[:,:,i]=np.nan_to_num(rescale_intensity(combined_RGB[:,:,i], out_range=(0, combined_RGB[:,:,i].max()/np.max(RGB_maxints) )));
     combined_RGB=LinearStretch()(combined_RGB**(1./gamma)) #gamma correction
@@ -1501,8 +1502,8 @@ class ControlPanel(HasTraits):
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
         self.image_colorRGB=colorize_image(self.image_greyRGB,hexinv(self.imagecolor),colorintype='hex',gammacorr_color=self.gamma)
-        #self.image_axesimage.set_data(1.-self.image_colorRGB**(1./self.gamma)) 
-        self.image_axesimage.set_data(combine_multicolor([self.image_colorRGB,],gamma=self.gamma,inverse=True))  
+        self.image_axesimage.set_data(1.-self.image_colorRGB**(1./self.gamma)) 
+        #self.image_axesimage.set_data(combine_multicolor([self.image_colorRGB,],gamma=self.gamma,inverse=True))  
         self.percent_min=np.round(nanpercofscore(self.data.ravel(),self.datamin,kind='strict'),2)
         self.percent_max=np.round(nanpercofscore(self.data.ravel(),self.datamax,kind='strict'),2)
         self.in_use=True

@@ -1,13 +1,17 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 2.0
+version 2.0.1
+
+API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
+
+
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3256060.svg)](https://doi.org/10.5281/zenodo.3256060)
 
 
 Sharing/Customization: Please, play around!  (MIT License)
 
-If you find this useful for your work, giving me (Phil Cigan) a nod in your acknowledgements would be nice.  
+If you find this useful for your work, giving me (Phil Cigan) a nod in your acknowledgements would be greatly appreciated.  For the intrepid and kind people who are able to include an actual reference in their work, bibtex and other citation styles can be generated for [the ASCL entry on ADS](https://ui.adsabs.harvard.edu/abs/2019ascl.soft09002C/abstract), otherwise the [Zenodo DOI bibtex](https://doi.org/10.5281/zenodo.3256060) ('Export' panel on bottom right) is another option.  
 
 
 
@@ -15,8 +19,6 @@ If you find this useful for your work, giving me (Phil Cigan) a nod in your ackn
 
 ![multicolorfits GUI](./images/multicolorfits_viewer_screenshot_kepler.png "multicolorfits GUI")
 
-
-API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
 
 
 
@@ -53,7 +55,8 @@ To call it interactively from within e.g., ipython:
 
 ```python
 import multicolorfits as mcf
-mcf.mcf_gui()  #This actually runs the viewer
+
+mcf.mcf_gui()  #This command runs the interactive viewer
 ```
 
 
@@ -185,8 +188,8 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 - The RGB color gamut is more limited than other colorspaces such as, e.g., CIE LAB, so you may not be able to get some specific colors you want
 - I haven't completely finished developing the 'inverted' (white background) RGB feature, so it doesn't behave 100% as expected
 - What you see on the screen will not likely appear the same way on printed paper -- need to convert RGB to CMYK for that.
-- Currently all input files must have same projection/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that. See the WLM package for example usage with multicolorfits.
-- This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files. (UN-checking the Auto-Refresh button will help.)  This could certainly be improved in future versions.
+- Currently all input files must have same projection/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that. See the WLM tutorial for example usage of the functions for this that are included with multicolorfits.
+- This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files. (UN-checking the Auto-Refresh button at the top of the GUI will help.)  This could certainly be improved in future versions.
 
 
 
