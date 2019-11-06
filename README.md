@@ -17,7 +17,7 @@ If you find this useful for your work, giving me (Phil Cigan) a nod in your ackn
 
 -----------------------
 
-![multicolorfits GUI](./images/multicolorfits_viewer_screenshot_kepler.png "multicolorfits GUI")
+![multicolorfits GUI](./images/mcf_gui_Crab.jpg "multicolorfits GUI")
 
 
 
@@ -126,8 +126,8 @@ Here are some plots out in the real world that were made with multicolorfits
 
 I developed this tool for a variety of reasons.  
 * I was sick of how long it took to manually get appropriate stretch levels, etc. for files for use in python plotting scripts
-* It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps want a method for doing things __programmatically__
-* I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes
+* It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps we want a method for doing things __programmatically__ and without loss of useful information
+* I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes, reprojecting, etc.
 * I wanted to expand beyond just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a collaborator: "That's weird, stars shouldn't look green...")
 * I wanted to experiment with non-standard display options -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
 
