@@ -1,19 +1,26 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 2.0
+version 2.0.1
+
+API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
+
+
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3256060.svg)](https://doi.org/10.5281/zenodo.3256060)
 
 
 Sharing/Customization: Please, play around!  (MIT License)
 
-If you find this useful for your work, giving me (Phil Cigan) a nod in your acknowledgements would be nice.  
+If you find this useful for your work, giving me (Phil Cigan) a nod in your acknowledgements would be greatly appreciated.  For the intrepid and kind people who are able to include an actual reference in their work, bibtex and other citation styles can be generated for [the ASCL entry on ADS](https://ui.adsabs.harvard.edu/abs/2019ascl.soft09002C/abstract), otherwise the [Zenodo DOI bibtex](https://doi.org/10.5281/zenodo.3256060) ('Export' panel on bottom right) is another option.  
 
 
 
 -----------------------
 
-![multicolorfits GUI](./images/multicolorfits_viewer_screenshot_kepler.png "multicolorfits GUI")
+![multicolorfits GUI](./images/mcf_gui_Crab.jpg "multicolorfits GUI")
+
+
+
 
 
 # Dependencies
@@ -23,48 +30,42 @@ If you find this useful for your work, giving me (Phil Cigan) a nod in your ackn
 * astropy
 * scipy
 * pyface
-* PyQt5 (PyQt4 should still work)
-* colorsys
+* PyQt5 (PyQt4 should still work) 
 * traits, traitsui
 * scikit-image (skimage)
 
 * reproject and/or kapteyn, for the optional reprojection convenience functions (montagepy suppport may be added in the future)
 
-
+- Tested in python 3.7 (and python 3.4 & 2.7 with PyQt4)
 
 
 # Installation
 
-No specific installation procedure is necessary, other than downloading multicolorfits.py :
-
-1. You can simply save a copy of multicolorfits.py in a local working directory.  This is suitable for running it in standalone mode (from the terminal). 
-
-2. To make it available for import (in scripts or ipython), 'install' it by adding it to your python path. 
-    
-To add to your path, either save a copy in a directory that's already part of the path, or include a new directory by updating your rc files with something like:
-(for .bashrc) 
+Install with pip
 ```console
-export PYTHONPATH=$PYTHONPATH:/path/to/dir/with/mcf/
+pip install multicolorfits
 ```
-(for .cshrc)
-```console
-setenv PYTHONPATH ${PYTHONPATH}:/path/to/dir/with/mcf/
-```
+
+Alternatively, you can simply save a copy of multicolorfits.py in a local working directory.  This is suitable for running it in standalone mode (from the terminal), and does not require a regular installation with pip. 
+
 
 # Usage
 
-Standalone, from a terminal:
+To call it interactively from within e.g., ipython:
+
+```python
+import multicolorfits as mcf
+
+mcf.mcf_gui()  #This command runs the interactive viewer
+```
+
+
+Alternatively, can be used as a standalone script, from a terminal:
 
 ```console
 python multicolorfits.py
 ```
 
-Alternatively, call it interactively from within e.g., ipython:
-
-```python
-import multicolorfits as mcf
-mcf.mcf_gui()  #This actually runs the viewer
-```
 
 
 When the viewer appears:
@@ -125,8 +126,8 @@ Here are some plots out in the real world that were made with multicolorfits
 
 I developed this tool for a variety of reasons.  
 * I was sick of how long it took to manually get appropriate stretch levels, etc. for files for use in python plotting scripts
-* It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps want a method for doing things __programmatically__
-* I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes
+* It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps we want a method for doing things __programmatically__ and without loss of useful information
+* I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes, reprojecting, etc.
 * I wanted to expand beyond just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a collaborator: "That's weird, stars shouldn't look green...")
 * I wanted to experiment with non-standard display options -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
 
@@ -140,8 +141,10 @@ Here are some useful resources for downloading some nicely tidied-up fits files 
 - [LITTLE THINGS (dwarf galaxy survey) data hosted by NRAO](https://science.nrao.edu/science/surveys/littlethings)
 - [SkyView (Virtual Observatory)](https://skyview.gsfc.nasa.gov/current/cgi/titlepage.pl)
 - [Sloan Digital Sky Survey (SDSS) Sky Server](http://skyserver.sdss.org/dr15/en/tools/explore/Summary.aspx?)
+- [Tom Williams' data_buttons, a very useful tool for grabbing data for your favorite target](https://github.com/thomaswilliamsastro/data_buttons)
 
 I will be using the Kepler, M51, M101, M106 data found at the Chandra link above for the examples below.
+
 
 
 
@@ -185,8 +188,8 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 - The RGB color gamut is more limited than other colorspaces such as, e.g., CIE LAB, so you may not be able to get some specific colors you want
 - I haven't completely finished developing the 'inverted' (white background) RGB feature, so it doesn't behave 100% as expected
 - What you see on the screen will not likely appear the same way on printed paper -- need to convert RGB to CMYK for that.
-- Currently all input files must have same projection/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that. See the WLM package for example usage with multicolorfits.
-- This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files. (UN-checking the Auto-Refresh button will help.)  This could certainly be improved in future versions.
+- Currently all input files must have same projection/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that. See the WLM tutorial for example usage of the functions for this that are included with multicolorfits.
+- This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files. (UN-checking the Auto-Refresh button at the top of the GUI will help.)  This could certainly be improved in future versions.
 
 
 

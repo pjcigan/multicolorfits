@@ -1,0 +1,9 @@
+pyqt5 
+astropy
+numpy
+matplotlib
+scipy
+pyface
+traits
+traitsui
+scikit-image

@@ -2,23 +2,22 @@
 ### v2.0
 ### written by Phil Cigan
 __author__ = "Phil Cigan <ciganp@cardiff.ac.uk>"
-__version__ = "2.0"
+__version__ = "2.0.1"
 
-"""
-Some resources for now: traits(ui) and chaco --> Though probably don't want to use Chaco as my normal code uses matplotlib
-https://docs.enthought.com/traitsui/tutorials/traits_ui_scientific_app.html
-http://scipy-cookbook.readthedocs.io/items/EmbeddingInTraitsGUI.html
-http://www.scipy-lectures.org/advanced/traits/index.html#example
-https://gist.github.com/pierre-haessig/9838326
 
-(Examples)
-http://henrysmac.org/blog/2014/8/19/demo-of-enthoughts-traitsui-with-matplotlib-and-a-popup-menu.html
-Eric Tollerud's traitsUI fitting GUI  https://pythonhosted.org/PyModelFit/over.html#tutorial-examples
+#Some resources for now: traits(ui) and chaco --> Though probably don't want to use Chaco as my normal code uses matplotlib
+#https://docs.enthought.com/traitsui/tutorials/traits_ui_scientific_app.html
+#http://scipy-cookbook.readthedocs.io/items/EmbeddingInTraitsGUI.html
+#http://www.scipy-lectures.org/advanced/traits/index.html#example
+#https://gist.github.com/pierre-haessig/9838326
+#
+#(Examples)
+#http://henrysmac.org/blog/2014/8/19/demo-of-enthoughts-traitsui-with-matplotlib-and-a-popup-menu.html
+#Eric Tollerud's traitsUI fitting GUI  https://pythonhosted.org/PyModelFit/over.html#tutorial-examples
+#
+#Click interaction with matplotlib: http://scipy-cookbook.readthedocs.io/items/Matplotlib_Interactive_Plotting.html
+#QT based toolbar  https://stackoverflow.com/questions/18468390/creating-matplotlib-toolbar-in-python-traits-editor
 
-Click interaction with matplotlib: http://scipy-cookbook.readthedocs.io/items/Matplotlib_Interactive_Plotting.html
-
-QT based toolbar  https://stackoverflow.com/questions/18468390/creating-matplotlib-toolbar-in-python-traits-editor
-"""
 
 
 import numpy as np
@@ -108,13 +107,31 @@ except: print('kapteyn package required for some options in task reproject2D()')
 scaling_fns={'linear':LinearStretch, 'sqrt':SqrtStretch, 'squared':SquaredStretch, 'log':LogStretch, 'power':PowerDistStretch, 'sinh':SinhStretch, 'asinh':AsinhStretch}
 
 def adjust_gamma(array_in,gamma):
-    #Replacement function for skimage.exposure.adjust_gamma, so that NaNs don't throw errors
+    """
+    Replacement function for skimage.exposure.adjust_gamma, so that NaNs don't throw errors
+    
+    Parameters
+    ----------
+    array_in : array
+        Input image array
+    gamma : float  
+        Gamma correction value
+    
+    Returns
+    -------
+    array
+        Gamma-adjusted image values
+    """
     return array_in**(float(gamma))
 
 def drawProgressBar(percent, barlength = 20, prefix = '', suffix = ''):
-    ### This draws a percentage bar of the specified length to stdout
-    ### Once you have calculated the compeltion percent in your task, call this function to update the display.
-    #alternatively, could use a module:  from termcolor import colored
+    """
+    This draws a percentage bar of the specified length to stdout\n
+    
+    Once you have calculated the compeltion percent in your task, call this function to update the display.\n
+    
+    (Alternatively, could use a module like tqdm or termcolor.colored)
+    """
     #import sys
     sys.stdout.write("\r")
     ANSIred='\033[31m'; ANSIgreen='\033[32m'; ANSIyellow='\033[33m'; ANSIblue='\033[34m'; ANSIreset='\033[0m';
@@ -133,10 +150,137 @@ def drawProgressBar(percent, barlength = 20, prefix = '', suffix = ''):
     #Mix & Match inside the \033[< >m  with commas ==> for example, \033[32,46,5m gives green,cyan bg, blink text
 
 def nanpercofscore(array_in,score,**kwargs):
-    #Usage is identical to scipy.stats.stats.percentileofscore(array_in,score), this just corrects for NaNs
+    """
+    Usage is identical to scipy.stats.stats.percentileofscore(array_in,score), this just corrects for NaNs
+    
+    Parameters
+    ----------
+    array_in : array 
+        input dataset
+    score : float
+        score for calculation
+    **kwargs 
+        keyword arguments to pass to scipy.stats.percentileofscore()
+    
+    Returns
+    -------
+    float, or array the length of score 
+        percentile of the score
+    """
     return percentileofscore(np.ma.masked_invalid(array_in).compressed(),score,**kwargs)
 
+def force_hdr_to_2D(hdrin):
+    """
+    A simple function to take in a header and remove items related to 3D or 4D structure -- such as NAXIS3...
+    
+    Parameters
+    ----------
+    hdrin : astropy.io.fits.header
+        Header object
+    
+    Returns
+    -------
+    astropy.io.fits.header
+        Output 2D header
+    """
+    hdr2D=hdrin.copy()
+    for item in ['CRVAL3','CRPIX3','CDELT3','CTYPE3','CUNIT3','NAXIS3','CRVAL4','CRPIX4','CDELT4','CUNIT4','CTYPE4', 'NAXIS4', 'PC03_01','PC04_01','PC03_02','PC04_02','PC01_03','PC02_03','PC03_03','PC04_03','PC01_04','PC02_04','PC03_04','PC04_04']: 
+        #del hdr2D[item]
+        try: hdr2D.remove(item) 
+        except: pass
+        hdr2D['NAXIS']=2
+    return hdr2D
+
+def force_hdr_floats(hdrin):
+    """
+    Helper function to force various header values to floats.
+    Sometimes programs save header values as strings, which messes up the WCS...
+    
+    Parameters
+    ----------
+    hdrin : astropy.io.fits.header
+        Header object
+    
+    Returns
+    -------
+    astropy.io.fits.header
+        Output header
+    """
+    for fc in ['CRPIX1','CRPIX2','CRVAL1','CRVAL2','CDELT1','CDELT2','CD1_1','CD1_2','CD2_1','CD2_2','CROTA','CROTA2','EQUINOX']: 
+        try: hdrin.set(fc,float(hdrin[fc])) 
+        except: pass
+
+def dec2sex(rain,decin,as_string=False,decimal_places=2):
+    """
+    Converts decimal coordinates to sexagesimal.
+    
+    Parameters
+    ----------
+    rain : float
+        Input Right Ascension in decimal -- e.g.,  12.34567
+    decin : float
+        input Declination in decimal -- e.g. -34.56789
+    as_string : bool
+        Specifies whether to return output as a string (useful for making tables)
+    decimal_places : int 
+        Number of decimals places to use when as_string=True
+    
+    Returns
+    -------
+    list
+        ['HH:MM:SS.ss', 'DD:MM:SS.ss']
+    """
+    rmins,rsec=divmod(24./360*rain*3600,60)
+    rh,rmins=divmod(rmins,60)
+    #dmins,dsec=divmod(decin*3600,60)
+    #ddeg,dmins=divmod(dmins,60)
+    ddeg=int(decin)
+    dmins=int(abs(decin-ddeg)*60)
+    dsec=(abs((decin-ddeg)*60)-dmins)*60
+    if as_string==True: return ['{0}:{1}:{2:0>{4}.{3}f}'.format(int(rh),int(rmins),rsec,decimal_places,decimal_places+3),'{0}:{1}:{2:0>{4}.{3}f}'.format(int(ddeg),int(dmins),dsec,decimal_places,decimal_places+3)]
+    else: return [int(rh),int(rmins),rsec],[int(ddeg),int(dmins),dsec]
+
+def sex2dec(rain,decin):
+    """
+    Converts sexagesimal coordinates to decimal. HMS and DMS separated by colons (:)
+    
+    Parameters
+    ----------
+    rain : str 
+        input Right Ascension as a sexagesimal string -- e.g.,  '03:45:6789'
+    decin : str 
+        input Declination as a sexagesimal string -- e.g.,  '-12:34:5678998765'
+    
+    Returns
+    -------
+    list
+        [12.345678, -10.987654]
+    """
+    if ':' in rain: ra=[float(val)*360./24 for val in rain.split(':')]
+    else: ra=[float(val)*360./24 for val in rain.split(' ')]
+    raout=ra[0]+ra[1]/60.+ra[2]/3600.
+    if ':' in decin: dec=[float(val) for val in decin.split(':')]
+    else: dec=[float(val) for val in decin.split(' ')]
+    if dec[0]<0: decout=dec[0]-dec[1]/60.-dec[2]/3600.
+    else: decout=dec[0]+dec[1]/60.+dec[2]/3600.
+    return [raout,decout]
+
 def getcdelts(hdrin,getrot=False):
+    """
+    Function to calculate CDELT1 and CDELT2 from the input header PCx_x cards.
+    
+    Parameters
+    ----------
+    hdrin : astropy.io.fits.header
+        Header object
+    getrot :bool
+        Specifies whether to return the rotation value crota in the output
+    
+    Returns
+    -------
+    float, float (, float)
+        CDELT1, CDELT2 (, CROTA)
+    """
     try: 
         cdelt1=float(hdrin['CDELT1']); cdelt2=float(hdrin['CDELT2'])
         try: 
@@ -157,52 +301,44 @@ def getcdelts(hdrin,getrot=False):
     if getrot==False: return cdelt1,cdelt2
     else: return cdelt1,cdelt2,crota
 
-def force_hdr_to_2D(hdrin):
-    hdr2D=hdrin.copy()
-    for item in ['CRVAL3','CRPIX3','CDELT3','CTYPE3','CUNIT3','NAXIS3','CRVAL4','CRPIX4','CDELT4','CUNIT4','CTYPE4', 'NAXIS4', 'PC03_01','PC04_01','PC03_02','PC04_02','PC01_03','PC02_03','PC03_03','PC04_03','PC01_04','PC02_04','PC03_04','PC04_04']: 
-        #del hdr2D[item]
-        try: hdr2D.remove(item) 
-        except: pass
-        hdr2D['NAXIS']=2
-    return hdr2D
-
-def force_hdr_floats(hdrin):
-    for fc in ['CRPIX1','CRPIX2','CRVAL1','CRVAL2','CDELT1','CDELT2','CD1_1','CD1_2','CD2_1','CD2_2','CROTA','CROTA2','EQUINOX']: 
-        try: hdrin.set(fc,float(hdrin[fc])) #Sometimes people save header values as strings, which messes up the WCS...
-        except: pass
-
-def dec2sex(rain,decin,as_string=False,decimal_places=2):
-    rmins,rsec=divmod(24./360*rain*3600,60)
-    rh,rmins=divmod(rmins,60)
-    #dmins,dsec=divmod(decin*3600,60)
-    #ddeg,dmins=divmod(dmins,60)
-    ddeg=int(decin)
-    dmins=int(abs(decin-ddeg)*60)
-    dsec=(abs((decin-ddeg)*60)-dmins)*60
-    if as_string==True: return ['{0}:{1}:{2:0>{4}.{3}f}'.format(int(rh),int(rmins),rsec,decimal_places,decimal_places+3),'{0}:{1}:{2:0>{4}.{3}f}'.format(int(ddeg),int(dmins),dsec,decimal_places,decimal_places+3)]
-    else: return [int(rh),int(rmins),rsec],[int(ddeg),int(dmins),dsec]
-
-def sex2dec(rain,decin):
-    if ':' in rain: ra=[float(val)*360./24 for val in rain.split(':')]
-    else: ra=[float(val)*360./24 for val in rain.split(' ')]
-    raout=ra[0]+ra[1]/60.+ra[2]/3600.
-    if ':' in decin: dec=[float(val) for val in decin.split(':')]
-    else: dec=[float(val) for val in decin.split(' ')]
-    if dec[0]<0: decout=dec[0]-dec[1]/60.-dec[2]/3600.
-    else: decout=dec[0]+dec[1]/60.+dec[2]/3600.
-    return [raout,decout]
-
 def convsky2pix(headerin,rain,decin,precise=False,checksys=False,incoordsys='fk5',incoordequinox='J2000.0',forceimagesys=None, originindex=0):
-    #SkyCoord allowed frame systems: ['altaz', 'barycentrictrueecliptic', 'cirs', 'fk4', 'fk4noeterms', 'fk5', 
-    #  'galactic', 'galactocentric', 'gcrs', 'geocentrictrueecliptic', 'hcrs', 'heliocentrictrueecliptic', 'icrs', 
-    #  'itrs', 'precessedgeocentric', 'supergalactic']
+    """
+    Helper function to convert sky coordinates to pixel coordinates.  Now uses SkyCoord.
+    
+    Allowed SkyCoord frame systems: ['altaz', 'barycentrictrueecliptic', 'cirs', 'fk4', 'fk4noeterms', 'fk5', 'galactic', 'galactocentric', 'gcrs', 'geocentrictrueecliptic', 'hcrs', 'heliocentrictrueecliptic', 'icrs', 'itrs', 'precessedgeocentric', 'supergalactic']
+    
+    Parameters
+    ----------
+    headerin : astropy.io.fits.header
+        Header object
+    rain : float 
+        Input Right Ascension, in decimal
+    decin : float 
+        Input Declination, in decimal
+    precise : bool  
+        False (default) to round to nearest integer pixel.  True to return fraction of pixel. 
+    checksys : bool
+        When True, checks that the input coordinate frame is the same as the header frame (e.g., fk5, icrs, etc.)
+    incoordsys : str
+        SkyCoord frame system, default = 'fk5'
+    incoordequinox : str
+        equinox, default = 'J2000.0'  
+    forceimagesys : str
+        SkyCoord frame system. User can specify a frame forceimagesys to use (in case no RADESYS in the header, or if it's known to be wrong...)
+    originindex : int
+        Default = 0.  Pixel origin to use for calculations (0 or 1)
+    
+    Returns
+    -------
+    list
+        [X-pixel, Y-pixel]
+    
+    """
     if checksys==True:
-        #Check that the input coordinate frame is the same as the header frame (e.g., fk5, icrs, etc.)
         try: 
             try: headerframe=headerin['RADESYS']
             except: headerframe=headerin['RADECSYS']
         except: 
-            #User can specify a frame forceimagesys to use (in case no RADESYS in the header, or if it's known to be wrong...)
             if forceimagesys is not None: headerframe=forceimagesys
             else: raise(Exception('Input header has no valid RADESYS/RADECSYS frame, and forceimagesys not specified...'))
         if headerframe.lower()==incoordsys.lower(): pass
@@ -231,6 +367,34 @@ def convsky2pix(headerin,rain,decin,precise=False,checksys=False,incoordsys='fk5
     else: return [np.int(np.round(pixarr[0][0])),np.int(np.round(pixarr[0][1]))]
 
 def convpix2sky(headerin,xin,yin,outcoordsys='same',outcoordequinox='J2000.0',forceimagesys=None, originindex=0):
+    """
+    Helper function to convert pixel coordinates to sky coordinates.  Now uses SkyCoord.
+    
+    Allowed SkyCoord frame systems: ['altaz', 'barycentrictrueecliptic', 'cirs', 'fk4', 'fk4noeterms', 'fk5', 'galactic', 'galactocentric', 'gcrs', 'geocentrictrueecliptic', 'hcrs', 'heliocentrictrueecliptic', 'icrs', 'itrs', 'precessedgeocentric', 'supergalactic']
+    
+    Parameters
+    ----------
+    headerin : astropy.io.fits.header
+        Header object
+    xin : float 
+        Input x-axis pixel position
+    yin : float 
+        Input y-axis pixel position
+    outcoordsys : str 
+        'same' for frame in the header, or can alternatively specify a SkyCoord frame system.  
+    outcoordequinox : str
+        equinox, default = 'J2000.0'  
+    forceimagesys : str
+        SkyCoord frame system. User can specify a frame forceimagesys to use (in case no RADESYS in the header, or if it's known to be wrong...)
+    originindex : int
+        Default = 0.  Pixel origin to use for calculations (0 or 1)
+    
+    Returns
+    -------
+    list
+        [RA_decimal, DEC_decimal]
+    
+    """
     try:
         wcstemp=pywcs.WCS(headerin)
         try:
@@ -260,6 +424,27 @@ def convpix2sky(headerin,xin,yin,outcoordsys='same',outcoordequinox='J2000.0',fo
         return [incoordSC.ra.value,incoordSC.dec.value]
 
 def makesimpleheader(headerin,naxis=2,radesys=None,equinox=None,pywcsdirect=False):
+    """
+    Function to make a new 'simple header' from the WCS information in the input header.  
+    
+    Parameters
+    ----------
+    headerin : astropy.io.fits.header
+        Header object
+    naxis : int 
+        Specifies how many axes the final header should have.  Default=2
+    radesys :str 
+        RA/DEC system to use (valid SkyCoord frame system, e.g. 'icrs')
+    equinox : str
+        Equinox to use for the output header
+    pywcsdirect : bool
+        True to create the header directly with astropy.wcs.WCS 
+    
+    Returns
+    -------
+    astropy.io.fits.header
+        Output header
+    """
     if type(headerin)==str:
         import astropy.io.fits as pyfits
         headerin=pyfits.getheader(headerin)
@@ -310,30 +495,22 @@ def makesimpleheader(headerin,naxis=2,radesys=None,equinox=None,pywcsdirect=Fals
         except: pass
     return simpleheader
 
-def getcdelts(hdrin,getrot=False):
-    try: 
-        cdelt1=float(hdrin['CDELT1']); cdelt2=float(hdrin['CDELT2'])
-        try: 
-            #Checks for PC matrix, which will modify the CDELT values
-            pc1_1=hdrin['PC1_1']; pc1_2=hdrin['PC1_2']; pc2_1=hdrin['PC2_1']; pc2_2=hdrin['PC2_2']; 
-            cdelt1*=np.sqrt(pc1_1**2+pc1_2**2)*np.sign(pc1_1); cdelt2*=np.sqrt(pc2_1**2+pc2_2**2)*np.sign(pc2_2)
-            crota=np.arctan(pc1_2/pc1_1)*180./np.pi #CROTA(2) is in degrees, from North
-        except: 
-            try: crota=hdrin['CROTA2']
-            except: 
-                try: crota=hdrin['CROTA']  
-                except: crota=0.
-    except:
-        try: cd1_1=float(hdrin['CD1_1']); cd1_2=float(hdrin['CD1_2']); cd2_1=float(hdrin['CD2_1']); cd2_2=float(hdrin['CD2_2']); 
-        except: raise(Exception('Header does not contain CDELT2 or CD2_2 cards...'))
-        cdelt1=np.sqrt(cd1_1**2+cd1_2**2)*np.sign(cd1_1); cdelt2=np.sqrt(cd2_1**2+cd2_2**2)*np.sign(cd2_2)
-        crota=np.arctan(cd1_2/cd1_1)*180./np.pi #CROTA(2) is in degrees, from North
-    if getrot==False: return cdelt1,cdelt2
-    else: return cdelt1,cdelt2,crota
-
 def getcdmatrix(hdrin,crot=None):
-    #Calculate CDn_m matrix from CDELTS and CROTA/CROTA2
-    #specify crot (deg) if you know it but header doesn't correctly have it
+    """
+    Calculate the CDn_m matrix from CDELTS and CROTA/CROTA2
+    
+    Parameters
+    ----------
+    hdrin : astropy.io.fits.header
+        Header object
+    crot : float  
+        Rotation in degrees, if you know it but the header doesn't correctly have it
+    
+    Returns
+    -------
+    float, float, float, float
+        CD1_1, CD1_2, CD2_1, CD2_2
+    """
     try: cd1_1=hdrin['CD1_1']; cd1_2=hdrin['CD1_2']; cd2_1=hdrin['CD2_1']; cd2_2=hdrin['CD2_2']; 
     except: 
         if crot is None:
@@ -353,38 +530,118 @@ def getcdmatrix(hdrin,crot=None):
     return cd1_1,cd1_2,cd2_1,cd2_2
 
 def getdegperpix(hdrin):
-    ###Assumes input header CDELTs are in degrees.
+    """
+    Calculates degrees per pixel side.  Assumes input header CDELTs are in degrees.
+    
+    Parameters
+    ----------
+    hdrin : astropy.io.fits.header
+        Header object
+    Returns
+    -------
+    float
+        Degrees per pixel side
+    """
     cdelt1,cdelt2=getcdelts(hdrin)
     if abs(cdelt1)-abs(cdelt2)<1e-6: return abs(cdelt2)
     else: raise(Exception('CDELT1 and CDELT2 are significantly different!'))
 
 def getasecperpix(hdrin):
-    ###Assumes input header CDELTs are in degrees.
+    """
+    Calculates arcseconds per pixel side.  Assumes input header CDELTs are in degrees.
+    
+    Parameters
+    ----------
+    hdrin : astropy.io.fits.header
+        Header object
+    Returns
+    -------
+    float
+        Arcseconds per pixel side
+    """
     return getdegperpix(hdrin)*3600
 
 def getsteradperpix(hdrin):
-    ###Assumes input header CDELTs are in degrees.
+    """
+    Calculates steradians per pixel.  Assumes input header CDELTs are in degrees.
+    
+    Parameters
+    ----------
+    hdrin : astropy.io.fits.header
+        Header object
+    Returns
+    -------
+    float
+        Steradians per pixel
+    """
     cdelt1,cdelt2=getcdelts(hdrin)
     if abs(cdelt1)-abs(cdelt2)<1e-6: return (cdelt2*np.pi/180.)**2
     else: raise(Exception('CDELT1 and CDELT2 are significantly different!'))
 
-def beampars_asec_fromhdr(hdrin): return [hdrin['BMAJ']*3600.,hdrin['BMIN']*3600.,hdrin['BPA']] #Return [BMAJ_asec,BMIN_asec,BPA_deg]
+def beampars_asec_fromhdr(hdrin): 
+    """
+    Returns beam parameters [BMAJ (arcsec), BMIN (arcsec), BPA (deg)] from input header
+    
+    Parameters
+    ----------
+    hdrin : astropy.io.fits.header
+        Header object
+    Returns
+    -------
+    list
+        [BMAJ_asec, BMIN_asec, BPA_deg]
+    """
+    return [hdrin['BMAJ']*3600.,hdrin['BMIN']*3600.,hdrin['BPA']] #Return [BMAJ_asec,BMIN_asec,BPA_deg]
 
 def pixperbeam_from_hdr(hdrin):
-    # Beam area = 2*PI*sigma_maj*sigma_min   = 2*PI*FWHM_maj*FWHM_min/(sqrt(8*ln(2)))**2  = PI*FWHM1*FWHM2/(4*ln(2))
-    # That's in whatever units the FWHM are in, which is degrees in the case of hdrin['BMAJ'], so use CDELTS to get area in pixels
-    #Requires valid BMAJ,BMIN header cards, where BMAJ,BMIN are in degrees
-    # Note that the scaling factor is 1.13, not 2*pi, because BMAJ/BMIN are FWHM, not sigma
+    """
+    Calculates the number of pixels per beam from the beam parameters (BMAJ,BMIN) in the header.
+    Beam area = 2*PI*sigma_maj*sigma_min   = 2*PI*FWHM_maj*FWHM_min/(sqrt(8*ln(2)))**2  = PI*FWHM1*FWHM2/(4*ln(2))
+    That's in whatever units the FWHM are in, which is degrees in the case of hdrin['BMAJ'], so use CDELTS to get area in pixels
+    Requires valid BMAJ,BMIN header cards, where BMAJ,BMIN are in degrees
+    Note that the scaling factor is 1.13, not 2*pi, because BMAJ/BMIN are FWHM, not sigma
+    
+    Parameters
+    ----------
+    hdrin : astropy.io.fits.header
+        Header object
+    Returns
+    -------
+    float
+        Pixels per beam
+    """
     return np.pi/(4.*np.log(2)) * hdrin['BMAJ']*hdrin['BMIN']/getdegperpix(hdrin)**2
 
 def reproject2D(mapin,hdrfrom,hdrto,scale=False,method='interp',interpdict={'order':1,'mode':'constant','cval':np.nan}, returnfootprint=False, parallel=True):
-    #method=['kapteyn' (interpolation), 'interp' (reproject.py), 'spi' (spherical polygon intersection)] Drizzle not yet implemented
-    #returnfootprint = True/False to also return the footprint of which reprojected pixels fell on original image grid
-    #parallel = True/False to use parallel processing ('spi' only)
-    #Scale: True if units are Flux [W/m^2, Jy, or similar].  False for brightness [W/m^2/sr, Jy/sr, or similar]
-    # Note that when convolving maps in beam units [e.g., Jy/beam], the reprojection will need scale=True because the beam sizes change.
-    #interpdict sets the interpol_dict (interpolation).  interpdict={order:<>,mode:<>,cval:<>}
-    #  --> order = spline order, 0 to 5; mode='constant','nearest','reflect','wrap'; cval = value outside bounds (NaN)
+    """
+    Function that reprojects a 2D map from the parameters in one header to the parameters in another header.
+    
+    Parameters
+    ----------
+    mapin : array 
+        Input map / data array (np.ndarray). Usually would get this from astropy.io.fits.getdata(...)
+    hdrfrom : astropy.io.fits.header
+        Header for the original image, specifying the original pixel size, etc.
+    hdrto : astropy.io.fits.header
+        Header to reproject to (usually just a second image's header)
+    scale : bool
+        True if units are Flux [W/m^2, Jy, or similar].  False for brightness [W/m^2/sr, Jy/sr, or similar]
+        --> Note that when convolving maps in beam units [e.g., Jy/beam], the reprojection will need scale=True because the beam sizes change.
+    method : str 
+        One of 'kapteyn' (kapteyn package, interpolation), 'interp' (reproject.py), or 'spi' (reproject package, spherical polygon intersection).  Drizzle not yet implemented
+    interpdict : dict 
+        For method='kapteyn'. Sets the interpol_dict (interpolation). interpdict={order:<>,mode:<>,cval:<>}
+        --> order = spline order, 0 to 5; mode='constant','nearest','reflect','wrap'; cval = value outside bounds (NaN)
+    returnfootprint : bool  
+        True to also return the footprint of which reprojected pixels fell on original image grid
+    parallel : bool 
+        True to use parallel processing (method='spi' only)
+    
+    Returns
+    -------
+    array (, array)
+        Reprojected map (, optional footprint)
+    """
     if scale==True:
         # --> Jy_2 = Jy_1_reproj*([sr/pix_2]/[sr/pix_1])
         # Set to True for [Jy/pix, W/m2/pix, Jy/beam if beam has been convolved]
@@ -408,6 +665,13 @@ def reproject2D(mapin,hdrfrom,hdrto,scale=False,method='interp',interpdict={'ord
     else: return map_reproj
 
 def reproject3D(mapin,hdrfrom,hdrto,scale=False,method='kapteyn',parallel=True,returnfootprint=False,print_progress=False):
+    """
+    Function that reprojects a 3D cube from the parameters in one header to the parameters in another header.
+    
+    Calls reproject2D for each slice in the cube.  
+    
+    See reproject2D for argument desscriptions.
+    """
     #Scale: True if units are Flux [W/m^2 or similar].  False for brightness [W/m^2/sr or similar]
     tmpcube=np.zeros(mapin.shape[-3]).astype(np.ndarray); tmpcube_foot=tmpcube.copy()
     if returnfootprint==True and method=='spi': 
@@ -426,12 +690,37 @@ def reproject3D(mapin,hdrfrom,hdrto,scale=False,method='kapteyn',parallel=True,r
         return np.array([tmpcube[zz] for zz in range(mapin.shape[-3])])
 
 def cropfits2D(datain,hdrin,xbounds,ybounds,newref=None,savenew=False,overwrite=False):
+    """
+    Function to crop a 2D fits image to the specified pixel bounds.  
+    
+    Parameters
+    ----------
+    datain : array
+        Input fits image array
+    hdrin : astropy.io.fits.header 
+        Input header
+    xbounds :list 
+        [min,max] x-axis pixel limits to use for new image slice
+    ybounds :list 
+        [min,max] y-axis pixel limits to use for new image slice
+    newref : None or str 
+        None, 'center', or 'origin'.  None (default) keeps the reference pixel sky coordinate the same.  
+        'center' forces the reference pixel to be the new center, 'origin' forces it to the new origin.
+    savenew : bool or str
+        False (default) does not save, otherwise specify a save path (e.g. savenew='./mynewfits.fits') to save the crop to disk  
+    overwrite : bool 
+        Input option to astropy.io.fits.writeto(..., overwrite=False)
+    
+    Returns
+    -------
+    array, astropy.io.fits.header
+        cropdata, crophdr
+    """
     #xbounds, ybounds are pixel values formatted as list: [xlo,xhi] and [ylo,yhi]
     #savenew= (path+)filename if desired to save new cropped fits file
     if len(datain.shape)>3: raise(Exception('Data array has 4 or more dimensions - reduce them to 2!'))
     if len(datain.shape)==2: pass
-    elif len(datain.shape)>2 and (datain.shape[i]==1 for i in range(len(datain.shape)-2)):
-        datain=datain[0,:,:]
+    elif len(datain.shape)>2 and (datain.shape[i]==1 for i in range(len(datain.shape)-2)): datain=datain[0,:,:]
     else: raise(Exception('File is not flattened 2D!  Use cropfits3D.'))
     if True in [item<0 for item in np.concatenate([xbounds,ybounds])]: 
         raise(Exception('Specified X/Y crop bounds are negative - must be positive.'))
@@ -467,9 +756,13 @@ def cropfits2D(datain,hdrin,xbounds,ybounds,newref=None,savenew=False,overwrite=
     return cropdata,crophdr
 
 def cropfits3D(datain,hdrin,xbounds,ybounds,zbounds=[0,None],newref=None,savenew=False,overwrite=False):
-    #xbounds, ybounds are pixel values formatted as list: [xlo,xhi] and [ylo,yhi]
-    #zbounds (optional) are channel numbers [zlo,zhi], 0-indexed
-    #savenew= (path+)filename if desired to save new cropped fits file
+    """
+    Function to crop a 3D fits cube to the specified pixel bounds.  
+    
+    zbounds (optional) are channel number boundaries [zmin,zmax], 0-indexed
+    
+    Other arguments the same as for cropfits2D
+    """
     if len(datain.shape)>3:
         if (datain.shape[i]==1 for i in range(len(datain.shape)-1)): datain=datain[0,:,:,:]
         else: raise(Exception('Data array has 4 or more dimensions - reduce them to 3!'))
@@ -502,6 +795,44 @@ def cropfits3D(datain,hdrin,xbounds,ybounds,zbounds=[0,None],newref=None,savenew
     return cropdata,crophdr
 
 def cropfits2D_coords(datain,hdrin,centerRADEC,radius_asec,newref=None,savenew=False,overwrite=False,return_cropcenterpix=False, coords_in='dec', checksys=False,incoordsys='fk5',incoordequinox='J2000.0',forceimagesys=None):
+    """
+    Function to crop a 2D fits image based on sky coordinates and specified width.  
+    
+    Parameters
+    ----------
+    datain : array 
+        Input fits image array
+    hdrin : astropy.io.fits.header 
+        Input header
+    centerRADEC : list 
+        List of RA,DEC coords.  e.g. [12.345678,-10.98765]  
+    radius_asec : float 
+        Radius (box half-width) of new image, in arcseconds
+    newref : str
+        None, 'center', or 'origin'.  None keeps the reference pixel sky coordinate the same.  
+        'center' forces the reference pixel to be the new center, 'origin' forces it to the new origin.
+    savenew : bool or str
+        False (default) does not save, otherwise specify a save path (e.g. savenew='./mynewfits.fits') to save the crop to disk 
+    overwrite : bool
+        Input option to astropy.io.fits.writeto(..., overwrite=False)
+    return_cropcenterpix : bool  
+        True will return the cropped image center pixel location.
+    coords_in : str 
+        'dec' for decimal (default) or 'sex' for sexagesimal.  
+    checksys : bool
+        Passes to convsky2pix().  When True, checks that the input coordinate frame is the same as the header frame (e.g., fk5, icrs, etc.)
+    incoordsys : str
+        Passes to convsky2pix().  SkyCoord frame system, default = 'fk5'
+    incoordequinox : str
+        Passes to convsky2pix().  equinox, default = 'J2000.0'  
+    forceimagesys : str
+        Passes to convsky2pix().  SkyCoord frame system. User can specify a frame forceimagesys to use (in case no RADESYS in the header, or if it's known to be wrong...)
+    
+    Returns
+    -------
+    array, astropy.io.fits.header
+        cropdata, crophdr  
+    """
     if 'sex' in coords_in.lower(): centerRADEC=sex2dec(*centerRADEC)
     centerpix=convsky2pix(hdrin,centerRADEC[0],centerRADEC[1],precise=True, checksys=checksys,incoordsys=incoordsys, incoordequinox=incoordequinox, forceimagesys=forceimagesys)
     pixextent=(radius_asec/3600)/getcdelts(hdrin)[1] #Total crop image width is center+/- radius_asec
@@ -512,6 +843,13 @@ def cropfits2D_coords(datain,hdrin,centerRADEC,radius_asec,newref=None,savenew=F
     else: return cropdat,crophdr
 
 def cropfits3D_coords(datain,hdrin,centerRADEC,radius_asec,zbounds=[0,None],newref=None,savenew=False,overwrite=False, coords_in='dec',  return_cropcenterpix=False):
+    """
+    Function to crop a 3D fits cube based on sky coordinates and specified width. 
+    
+    zbounds (optional) are channel number boundaries [zmin,zmax], 0-indexed
+    
+    Other arguments the same as for cropfits2D_coords()
+    """
     if 'sex' in coords_in.lower(): centerRADEC=sex2dec(*centerRADEC)
     if zbounds[1] is None: zbounds[1]=datain.shape[0]+1
     centerpix=convsky2pix(hdrin,centerRADEC[0],centerRADEC[1],precise=True)
@@ -523,14 +861,51 @@ def cropfits3D_coords(datain,hdrin,centerRADEC,radius_asec,zbounds=[0,None],newr
     else: return cropdat,crophdr
 
 def hex_to_rgb(hexstring):
+    """
+    Converts a hexadecimal string to RGB tuple 
+    
+    Parameters
+    ----------
+    hexstring : str
+        Hexadecimal string such as '#FFFFFF'
+    Returns
+    -------
+    tuple
+        RGB tuple such as (256,256,256)
+    """
     #From http://stackoverflow.com/a/214657
     hexstring = hexstring.lstrip('#')
     lv = len(hexstring)
     return tuple(int(hexstring[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
 
-def rgb_to_hex(rgb): return '#%02x%02x%02x'%rgb #input RGB as tuple.  e.g.: rgb_to_hex((255, 255, 255))
+def rgb_to_hex(rgb): 
+    """
+    Converts RGB tuple to a hexadecimal string
+    
+    Parameters
+    ----------
+    rgb : tuple
+        RGB tuple such as (256,256,256)
+    Returns
+    -------
+    str
+        Hexadecimal string such as '#FFFFFF'
+    """    
+    return '#%02x%02x%02x'%rgb #input RGB as tuple.  e.g.: rgb_to_hex((255, 255, 255))
 
 def hex_to_hsv(hexstring):
+    """
+    Convert a hexadecimal string to HSV tuple
+    
+    Parameters
+    ----------
+    hexstring : str
+        Hexadecimal string such as '#3300FF'
+    Returns
+    -------
+    tuple
+        HSV tuple such as (0.7,1.,1.)
+    """
     #See Wikipedia article for details -- https://en.wikipedia.org/wiki/HSL_and_HSV#From_HSV  .  Modified from colorsys.py,
     # HSV: Hue, Saturation, Value
     # H = position in the spectrum, S = color saturation ("purity"), V = color brightness
@@ -547,7 +922,19 @@ def hex_to_hsv(hexstring):
     return h, s, v #All in fractions in range [0...1]
 
 def hexinv(hexstring):
-    #convenience function to calculate the inverse color (opposite on the color wheel)
+    """
+    Convenience function to calculate the inverse color (opposite on the color wheel).
+    e.g.: hexinv('#FF0000') = '#00FFFF'
+    
+    Parameters
+    ----------
+    hexstring : str
+        Hexadecimal string such as '#FF0000'
+    Returns
+    -------
+    str
+        Hexadecimal string such as '#00FFFF'
+    """
     if hexstring[0]=='#': hexstring=hexstring.lstrip('#')
     hexcolor=int(hexstring,16)
     color_comp=0xFFFFFF^hexcolor
@@ -563,11 +950,29 @@ except:
         return c_hex
 
 def greyRGBize_image(datin,rescalefn='linear',scaletype='abs',min_max=[None,None],gamma=2.2,checkscale=False):
+    """
     ### Takes an image and returns 3-frame [R,G,B] (vals from 0...1)
-    #rescalefn = function to use for rescaling intensity.  imscale.linear/sqrt/squared/log/power/sinh/asinh
-    #scaletype: 'abs' for absolute values, 'perc' for percentiles
-    #min_max: min/max vals to use in rescale.  if scaletype='perc', list the percentiles to use, e.g. [1.,95.]
-    #gamma = value for gamma correction.  For combining colorized frames, use default gamma=2.2.  For inverse, use gamma=(1./2.2)
+    
+    Parameters
+    ----------
+    datin : array 
+        Input 2D image data array
+    rescalefn : func 
+        Function to use for rescaling intensity.  imscale.linear/sqrt/squared/log/power/sinh/asinh
+    scaletype : str 
+        'abs' for absolute values, 'perc' for percentiles
+    min_max : list
+        [min,max] vals to use in rescale.  if scaletype='perc', list the percentiles to use, e.g. [1.,95.]
+    gamma : float 
+        Value for gamma correction.  For combining colorized frames, use default gamma=2.2.  For inverse, use gamma=(1./2.2)
+    checkscale : bool  
+        True to bring up plot to check the new image scale.
+    
+    Returns
+    -------
+    array
+        Greyscale RGB image, shape=[ypixels,xpixels,3]
+    """
     if 'per' in scaletype.lower(): 
         if min_max==[None,None]: min_max=[0.,100.]
         minval,maxval=np.percentile(np.ma.masked_invalid(datin).compressed(),min_max)
@@ -596,10 +1001,27 @@ def greyRGBize_image(datin,rescalefn='linear',scaletype='abs',min_max=[None,None
     return dat_greyRGB
   
 def colorize_image(image, colorvals, colorintype='hsv',dtype=np.float64,gammacorr_color=1):
+    """
     ### Add color of the given hue to an RGB greyscale image.
-    #colorintype='hsv' [0..1,0..1,0..1],  'rgb' [0..255,0..255,0..255], or 'hex' '#XXXXXX'
-    #dtype defaults tostandard numpy float, but may want to lower to e.g. float32 for large images (>~1000x1000)
-    #gammacorr_color=(float).  To use color as-is, leave as 1.  To gamma-correct color (e.g., to match gamma for scaled image), specify factor
+    
+    Parameters
+    ----------
+    image : array
+        Greyscale RGB image -- as would be output from greyRGBize_image()
+    colorvals : str or list or tuple 
+        color values to apply to image.  e.g., '#FF0000' if colorintype='hex'
+    colorintype : str 
+        'hsv' for [0..1,0..1,0..1],  'rgb' for [0..255,0..255,0..255], or 'hex' for '#XXXXXX'
+    dtype : dtype 
+        Defaults to standard numpy float, but may want to lower to e.g. float32 for large images (>~1000x1000)
+    gammacorr_color : float
+        To use color as-is, leave as 1 (default).  To gamma-correct color at this step (e.g., to match gamma for checking a scaled image), specify a factor
+    
+    Returns
+    -------
+    array
+        Colorized RGB image, shape=[ypixels,xpixels,3]
+    """
     if colorintype not in ['hsv', 'hsv_dict', 'rgb', 'hex']: raise Exception("  colorintype must be 'hsv', 'hsv_dict', 'rgb', or 'hex'")
     hsv = ski_color.rgb2hsv(image).astype(dtype)
     if colorintype.lower()=='rgb': colorvals=np.array(hex_to_hsv(rgb_to_hex(colorvals))).astype(dtype)
@@ -614,12 +1036,26 @@ def colorize_image(image, colorvals, colorintype='hsv',dtype=np.float64,gammacor
     return ski_color.hsv2rgb(hsv).astype(dtype)
 
 def combine_multicolor(im_list_colorized,gamma=2.2,inverse=False):
-    #Combines input colorized RGB images [:,:,3] into one intensity-rescaled 
-    #im_list_colorized: list of colorized images.  e.g., [halpha_purple,co21_orange,sio54_teal]
-    #gamma = value used for gamma correction ^1/gamma [default=2.2].  If inverse=True, will automatically use ^gamma instead.
-    #inverse=True  will invert the scale so that white is the background
+    """
+    Combines input colorized RGB images [:,:,3] into one intensity-rescaled RGB image
+    
+    Parameters
+    ----------
+    im_list_colorized : list 
+        List of colorized RGB images.  e.g., [ halpha_purple, co21_orange, sio54_teal ]
+    gamma : float 
+        Value used for gamma correction ^1/gamma.  Default=2.2.  
+    inverse : bool  
+        True will invert the scale so that white is the background
+    
+    Returns
+    -------
+    array
+        Colorized RGB image (combined), shape=[ypixels,xpixels,3]
+    """
     combined_RGB=LinearStretch()(np.nansum(im_list_colorized,axis=0))
-    RGB_maxints=tuple(np.nanmax(combined_RGB[:,:,i]) for i in [0,1,2])
+    if inverse==True: RGB_maxints=tuple(1.-np.nanmax(combined_RGB[:,:,i]) for i in [0,1,2])
+    else: RGB_maxints=tuple(np.nanmax(combined_RGB[:,:,i]) for i in [0,1,2])
     for i in [0,1,2]: 
         combined_RGB[:,:,i]=np.nan_to_num(rescale_intensity(combined_RGB[:,:,i], out_range=(0, combined_RGB[:,:,i].max()/np.max(RGB_maxints) )));
     combined_RGB=LinearStretch()(combined_RGB**(1./gamma)) #gamma correction
@@ -627,6 +1063,32 @@ def combine_multicolor(im_list_colorized,gamma=2.2,inverse=False):
     return combined_RGB
 
 def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath,tickcolor='w',labelcolor='k',facecolor='w', minorticks=True, dpi=150):
+    """
+    Convenience function to plot and save a single multicolor RGB image.
+    
+    For tick/label colors: Any standard matplotlib color format, such as 'k', 'black', '#000000', or '0.0' 
+    
+    Parameters
+    ----------
+    multicolorin : array 
+        Multicolor RGB image -- as would be output from combine_multicolor()
+    hdrin : astropy.io.fits.header 
+        Header to use for WCS information
+    axtitle : str 
+        String to use for plot title.  e.g. "My crazy 5-color image", or empty quotes "" for nothing.
+    savepath : str 
+        Path to save file to.  e.g., "./plots/mycrazyimage.pdf"
+    tickcolor : str  
+        Color to use for ticks in plot, default = 'w'. 
+    labelcolor : str 
+        Color to use for ticklabels, default = 'k'
+    facecolor : str 
+        Color to use for figure facecolor (border around plot), default ='w'
+    minorticks : bool 
+        True to use minor ticks 
+    dpi : int  
+        Default=150. Dots per inch value to use for saved plot.
+    """
     plt.rcParams.update({'font.family': 'serif','xtick.major.size':6,'ytick.major.size':6, \
                          'xtick.major.width':1.,'ytick.major.width':1., \
                          'xtick.direction':'in','ytick.direction':'in',
@@ -656,7 +1118,39 @@ def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath,tickcolor='w',la
     plt.savefig(savepath,bbox_inches='tight',dpi=dpi,facecolor=fig1.get_facecolor())
     plt.clf(); plt.close('all')
 
-def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,savepath,tickcolor='w',labelcolor='k',facecolor='w',supy=.8,dpi=150, minorticks=True):
+def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,savepath,tickcolor='w',labelcolor='k',facecolor='w', supy=.8, dpi=150, minorticks=True):
+    """
+    Convenience function to compare a pure RGB image with your multicolor RGB plot, and save to file.
+    
+    For tick/label colors: Any standard matplotlib color format, such as 'k', 'black', '#000000', or '0.0' 
+    
+    Parameters
+    ----------
+    rgbin : array 
+        Input pure RGB image  -->  e.g.,   np.dstack( [redframe, gframe, bframe] ) 
+    multicolorin : array
+        Multicolor RGB image -- as would be output from combine_multicolor()
+    hdrin : astropy.io.fits.header 
+        Header to use for WCS information
+    ax2title : str 
+        String to use for 2nd axis plot title.  e.g. "My crazy 5-color image", or empty quotes "" for nothing.
+    suptitle : str 
+        String for super title (centered at top of plot, super title applies to whole figure)
+    savepath : str 
+        Path to save file to.  e.g., "./plots/mycrazyimage.pdf"
+    tickcolor : str  
+        Color to use for ticks in plot, default = 'w'. 
+    labelcolor : str 
+        Color to use for ticklabels, default = 'k'
+    facecolor : str 
+        Color to use for figure facecolor (border around plot), default ='w'
+    minorticks : bool 
+        True to use minor ticks 
+    dpi : int  
+        Default=150. Dots per inch value to use for saved plot.
+    supy : float 
+        Position for suptitle (default = 0.8)
+    """
     plt.rcParams.update({'font.family': 'serif','xtick.major.size':6,'ytick.major.size':6, \
                          'xtick.major.width':1.,'ytick.major.width':1., \
                          'xtick.direction':'in','ytick.direction':'in',
@@ -696,29 +1190,46 @@ def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,save
     plt.clf(); plt.close('all')
 
 def saveRGBfits(savepath,multicolorRGBdat,commonhdr,overwrite=True):
+    """
+    Convenience function to save out the multicolorRGB image to a fits file.
+    
+    Parameters
+    ----------
+    savepath : str 
+        Path to save file to.  e.g., "./fits/mycrazy5colr.fits"
+    multicolorRGBdat : array 
+        Multicolor RGB image -- as would be output from combine_multicolor()
+    commonhdr : astropy.io.fits.header 
+        The common header with the WCS information for the output images
+    overwrite : bool
+        Passed to astropy.io.fits.writeto()
+    """
     pyfits.writeto(savepath,np.swapaxes(np.swapaxes(multicolorRGBdat,0,2),2,1),commonhdr,overwrite=overwrite)
 
 class _MPLFigureEditor(Editor):
-   scrollable  = True
-   def init(self, parent):
-       self.control = self._create_canvas(parent)
-       self.set_tooltip()
-   def update_editor(self): pass
-   def _create_canvas(self, parent):
-       """ Create the MPL canvas. """
-       # matplotlib commands to create a canvas
-       frame = QtGui.QWidget()
-       mpl_canvas = FigureCanvas(self.value)
-       mpl_canvas.setParent(frame)
-       #mpl_toolbar = NavigationToolbar2QTAgg(mpl_canvas,frame)
-       mpl_toolbar = NavigationToolbar2QT(mpl_canvas,frame)
+    """
+    GUI Figure Editor 
+    """
+    scrollable  = True
+    def init(self, parent):
+        self.control = self._create_canvas(parent)
+        self.set_tooltip()
+    def update_editor(self): pass
+    def _create_canvas(self, parent):
+        """ Create the MPL canvas. """
+        # matplotlib commands to create a canvas
+        frame = QtGui.QWidget()
+        mpl_canvas = FigureCanvas(self.value)
+        mpl_canvas.setParent(frame)
+        #mpl_toolbar = NavigationToolbar2QTAgg(mpl_canvas,frame)
+        mpl_toolbar = NavigationToolbar2QT(mpl_canvas,frame)
 
-       vbox = QtGui.QVBoxLayout()
-       vbox.addWidget(mpl_canvas)
-       vbox.addWidget(mpl_toolbar)
-       frame.setLayout(vbox)
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(mpl_canvas)
+        vbox.addWidget(mpl_toolbar)
+        frame.setLayout(vbox)
 
-       return frame
+        return frame
 
 class MPLFigureEditor(BasicEditorFactory): klass = _MPLFigureEditor
 
@@ -737,7 +1248,9 @@ class MPLInitHandler(Handler):
 ##### The left side panels #####
 
 class ControlPanel(HasTraits):
-    """This is the control panel where the various parameters for the images are specified
+    """
+    This is the control panel where the various parameters for the images are specified in the GUI.
+    (The left-side panel)
     """
     
     gamma=Float(2.2)
@@ -989,8 +1502,8 @@ class ControlPanel(HasTraits):
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
         self.image_colorRGB=colorize_image(self.image_greyRGB,hexinv(self.imagecolor),colorintype='hex',gammacorr_color=self.gamma)
-        #self.image_axesimage.set_data(1.-self.image_colorRGB**(1./self.gamma)) 
-        self.image_axesimage.set_data(combine_multicolor([self.image_colorRGB,],gamma=self.gamma,inverse=True))  
+        self.image_axesimage.set_data(1.-self.image_colorRGB**(1./self.gamma)) 
+        #self.image_axesimage.set_data(combine_multicolor([self.image_colorRGB,],gamma=self.gamma,inverse=True))  
         self.percent_min=np.round(nanpercofscore(self.data.ravel(),self.datamin,kind='strict'),2)
         self.percent_max=np.round(nanpercofscore(self.data.ravel(),self.datamax,kind='strict'),2)
         self.in_use=True
@@ -1062,7 +1575,8 @@ class ControlPanel(HasTraits):
 ##### The main viewer #####
 
 class multicolorfits_viewer(HasTraits):
-    """The main window. Has instructions for creating and destroying the app.
+    """The main window. (Right-side panel.)
+    Has instructions for creating and destroying the app.
     """
     
     panel1 = Instance(ControlPanel)
@@ -1111,6 +1625,7 @@ class multicolorfits_viewer(HasTraits):
         self.image = self._fresh_image() #Sets a blank image
         self.image_axes = self.figure_combined.add_subplot(111,aspect=1)
         self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray',origin='lower',interpolation='nearest')
+        self.image_axes.text(50,50,'Currently, all images must share a common pixel grid before \nloading, as this GUI does not yet reproject on the fly. \nThe provided mcf.reproject2D() function can be used to achieve this.',color='w',ha='center')
         self.image_axes.set_xlabel(self.xlabel); self.image_axes.set_ylabel(self.ylabel)
         self.image_axes.tick_params(axis='both',color=self.tickcolor) #colors=... also sets label color
         try: self.image_axes.coords.frame.set_color(self.tickcolor) #Updates the frame color.  .coords won't exist until WCS set
@@ -1338,7 +1853,7 @@ class multicolorfits_viewer(HasTraits):
     
     def _save_the_image_fired(self):
         dlg = FileDialog(action='save as')
-        if dlg.open() == OK: plt.savefig(dlg.path,size=(800,800),dpi=300)
+        if dlg.open() == OK: self.figure_combined.savefig(dlg.path,size=(800,800),dpi=300,bbox_inches='tight')
     
     def _save_the_fits_fired(self): 
         #Generate a generic header with correct WCS and comments about the colors that made it
@@ -1359,6 +1874,15 @@ class multicolorfits_viewer(HasTraits):
         #print('vmin=%.3e, vmax=%.3e'%(self.panel1.datamin,self.panel1.datamax))
         
 def mcf_gui():
+    """
+    Call this function to run the GUI. (Keeping as legacy)
+    """
+    multicolorfits_viewer().configure_traits()
+
+def gui():
+    """
+    Call this function to run the GUI. 
+    """
     multicolorfits_viewer().configure_traits()
 
 if __name__ == '__main__':
