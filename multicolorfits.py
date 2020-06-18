@@ -1625,6 +1625,7 @@ class multicolorfits_viewer(HasTraits):
         self.image = self._fresh_image() #Sets a blank image
         self.image_axes = self.figure_combined.add_subplot(111,aspect=1)
         self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray',origin='lower',interpolation='nearest')
+        self.image_axes.text(50,50,'Currently, all images must share a common pixel grid before \nloading, as this GUI does not yet reproject on the fly. \nThe provided mcf.reproject2D() function can be used to achieve this.',color='w',ha='center')
         self.image_axes.set_xlabel(self.xlabel); self.image_axes.set_ylabel(self.ylabel)
         self.image_axes.tick_params(axis='both',color=self.tickcolor) #colors=... also sets label color
         try: self.image_axes.coords.frame.set_color(self.tickcolor) #Updates the frame color.  .coords won't exist until WCS set
@@ -1852,7 +1853,7 @@ class multicolorfits_viewer(HasTraits):
     
     def _save_the_image_fired(self):
         dlg = FileDialog(action='save as')
-        if dlg.open() == OK: plt.savefig(dlg.path,size=(800,800),dpi=300)
+        if dlg.open() == OK: self.figure_combined.savefig(dlg.path,size=(800,800),dpi=300,bbox_inches='tight')
     
     def _save_the_fits_fired(self): 
         #Generate a generic header with correct WCS and comments about the colors that made it
@@ -1874,7 +1875,13 @@ class multicolorfits_viewer(HasTraits):
         
 def mcf_gui():
     """
-    Call this function to run the GUI.
+    Call this function to run the GUI. (Keeping as legacy)
+    """
+    multicolorfits_viewer().configure_traits()
+
+def gui():
+    """
+    Call this function to run the GUI. 
     """
     multicolorfits_viewer().configure_traits()
 
