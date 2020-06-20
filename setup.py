@@ -5,11 +5,11 @@ with open('README.md','r') as fh:
 
 setuptools.setup(
     name='multicolorfits',
-    version='2.0.1',
+    version='2.0.2',
     url='https://github.com/pjcigan/multicolorfits', #'http://multicolorfits.readthedocs.io',
     license='MIT',
     author='Phil Cigan',
-    author_email='ciganp@cardiff.ac.uk',
+    author_email='pcigan@gmu.edu',
     description='GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots',
     long_description=long_description,
     long_description_content_type="text/markdown",
