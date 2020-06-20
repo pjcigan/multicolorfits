@@ -1,8 +1,8 @@
 ### MultiColorFits
 ### v2.0
 ### written by Phil Cigan
-__author__ = "Phil Cigan <ciganp@cardiff.ac.uk>"
-__version__ = "2.0.1"
+__author__ = "Phil Cigan <pcigan@gmu.edu>"
+__version__ = "2.0.2"
 
 
 #Some resources for now: traits(ui) and chaco --> Though probably don't want to use Chaco as my normal code uses matplotlib
