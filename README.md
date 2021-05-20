@@ -1,6 +1,6 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 2.0.1
+version 2.0.3
 
 API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
 
@@ -89,7 +89,7 @@ Also see some more example images below.
 
 # Features
 
-* Can load up to 4 images (you could easily customize it to include more)
+* GUI can load up to 4 images (you could customize it to include more)
     - Can copy/paste into input box or use file explorer
     - **__Note:__** At the moment, all input images must share a common pixel grid (no reprojection is done on the fly, though functions are included to do this manually in scripts)
 * Specify your preferred color for each image:
@@ -116,6 +116,7 @@ Also see some more example images below.
 Here are some plots out in the real world that were made with multicolorfits
 
 * [Watkins+2019, A&A, 628A, 21](https://arxiv.org/abs/1906.09275) -- [Figure 1](https://www.aanda.org/articles/aa/full_html/2019/08/aa35277-19/F1.html)
+* [Marian+2020, ApJ, 904, 79](https://ui.adsabs.harvard.edu/abs/2020ApJ...904...79M/abstract) -- [Figures 2 & 8](https://iopscience.iop.org/article/10.3847/1538-4357/abbd3e#apjabbd3ef2)
 
 
 -----------------------
@@ -128,7 +129,7 @@ I developed this tool for a variety of reasons.
 * I was sick of how long it took to manually get appropriate stretch levels, etc. for files for use in python plotting scripts
 * It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps we want a method for doing things __programmatically__ and without loss of useful information
 * I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes, reprojecting, etc.
-* I wanted to expand beyond just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a collaborator: "That's weird, stars shouldn't look green...")
+* I wanted to expand beyond just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a colleague: "That's weird, stars shouldn't look green...")
 * I wanted to experiment with non-standard display options -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
 
 

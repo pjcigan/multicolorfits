@@ -2,7 +2,7 @@
 ### v2.0
 ### written by Phil Cigan
 __author__ = "Phil Cigan <pcigan@gmu.edu>"
-__version__ = "2.0.2"
+__version__ = "2.0.3"
 
 
 #Some resources for now: traits(ui) and chaco --> Though probably don't want to use Chaco as my normal code uses matplotlib
@@ -37,7 +37,12 @@ try:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
     from traitsui.qt4.editor import Editor 
-    from traitsui.qt4.basic_editor_factory import BasicEditorFactory
+    try: 
+        #from traitsui.editor import Editor #--> No, non-qt4 version raises an error about 'set_size_policy'...
+        from traitsui.basic_editor_factory import BasicEditorFactory
+    except: 
+        #from traitsui.qt4.editor import Editor 
+        from traitsui.qt4.basic_editor_factory import BasicEditorFactory
     #These two for changing the cursor
     from PyQt5.QtCore import Qt #PyQt5 only for python3
     from PyQt5.QtWidgets import QApplication, QMenu #PyQt5 only for python3
@@ -1853,7 +1858,9 @@ class multicolorfits_viewer(HasTraits):
     
     def _save_the_image_fired(self):
         dlg = FileDialog(action='save as')
-        if dlg.open() == OK: self.figure_combined.savefig(dlg.path,size=(800,800),dpi=300,bbox_inches='tight')
+        if dlg.open() == OK: 
+            self.figure_combined.canvas.draw()
+            self.figure_combined.savefig(dlg.path,size=(800,800),dpi=300,bbox_inches='tight')
     
     def _save_the_fits_fired(self): 
         #Generate a generic header with correct WCS and comments about the colors that made it
