@@ -5,7 +5,7 @@ with open('README.md','r') as fh:
 
 setuptools.setup(
     name='multicolorfits',
-    version='2.0.2',
+    version='2.0.3',
     url='https://github.com/pjcigan/multicolorfits', #'http://multicolorfits.readthedocs.io',
     license='MIT',
     author='Phil Cigan',
