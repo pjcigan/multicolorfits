@@ -115,8 +115,13 @@ Also see some more example images below.
 
 Here are some plots out in the real world that were made with multicolorfits
 
-* [Watkins+2019, A&A, 628A, 21](https://arxiv.org/abs/1906.09275) -- [Figure 1](https://www.aanda.org/articles/aa/full_html/2019/08/aa35277-19/F1.html)
+* [Rigby+2021, MNRAS, 502, 4576 -- Figure 1](https://ui.adsabs.harvard.edu/abs/2021MNRAS.502.4576R/abstract)
 * [Marian+2020, ApJ, 904, 79](https://ui.adsabs.harvard.edu/abs/2020ApJ...904...79M/abstract) -- [Figures 2 & 8](https://iopscience.iop.org/article/10.3847/1538-4357/abbd3e#apjabbd3ef2)
+* Nature 'behind the paper' blog, SN1987A dust
+    - [Splash image](https://astronomycommunity.nature.com/posts/57171-peering-into-the-dusty-heart-of-sn-1987a) (at the top)
+    - [First set of images](https://images.zapnito.com/uploads/976eb83c22e0a42a3889d30569cd115b/c7ef3498-2ccf-4f69-ae64-20795f8869a9.jpeg)
+* [Watkins+2019, A&A, 628A, 21](https://arxiv.org/abs/1906.09275) -- [Figure 1](https://www.aanda.org/articles/aa/full_html/2019/08/aa35277-19/F1.html)
+
 
 
 -----------------------
