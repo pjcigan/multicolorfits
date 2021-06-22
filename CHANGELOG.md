@@ -1,3 +1,14 @@
+# 2.1
+
+2021-06-21
+
+* Added buttons in the left side panels to edit image headers
+    - This may be useful for tweaking things (e.g. bump reference pixel values to shift an HST image alignment), to declutter HISTORY and COMMENT cards, etc. 
+    - Currently, aftere making edits in the popup window the user must also click the Apply Header Changes button to apply the changes.  Clicking Edit Header again before applying will discard the changes. 
+    - Headers can also be saved to / loaded from text files
+* Fixed the Save Image button functionality
+
+
 # 2.0
 
 2019-09-12
