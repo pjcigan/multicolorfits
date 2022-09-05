@@ -78,6 +78,7 @@ from traitsui.api import ColorTrait,ColorEditor
 from skimage import color as ski_color
 #from skimage.exposure import adjust_gamma  #Just use custom function, as this doesn't handle NaNs
 from skimage.exposure import rescale_intensity
+from skimage import filters
 
 import colorsys
 
@@ -93,9 +94,9 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredDrawingArea
 from astropy.coordinates import SkyCoord
 
 try: import reproject
-except: print('reproject package required for some options in task reproject2D()')
+except: print('multicolorfits: reproject package required for some options in task reproject2D()')
 try: import kapteyn
-except: print('kapteyn package required for some options in task reproject2D()')
+except: print('multicolorfits: kapteyn package required for some options in task reproject2D()')
 
 
 ##########################################################################
@@ -241,10 +242,14 @@ def dec2sex(rain,decin,as_string=False,decimal_places=2):
     #dmins,dsec=divmod(decin*3600,60)
     #ddeg,dmins=divmod(dmins,60)
     ddeg=int(decin)
+    if ddeg==0 and decin<0: ddeg=np.NZERO #Case of -0 degrees
     dmins=int(abs(decin-ddeg)*60)
     dsec=(abs((decin-ddeg)*60)-dmins)*60
-    if as_string==True: return ['{0}:{1}:{2:0>{4}.{3}f}'.format(int(rh),int(rmins),rsec,decimal_places,decimal_places+3),'{0}:{1}:{2:0>{4}.{3}f}'.format(int(ddeg),int(dmins),dsec,decimal_places,decimal_places+3)]
-    else: return [int(rh),int(rmins),rsec],[int(ddeg),int(dmins),dsec]
+    if as_string==True: 
+        if ddeg==0 and decin<0: decdegstring='-00'
+        else: decdegstring='{0:0>2d}'.format(ddeg)
+        return ['{0:0>2d}:{1:0>2d}:{2:0>{4}.{3}f}'.format(int(rh),int(rmins),rsec, decimal_places,decimal_places+3), '{0}:{1:0>2d}:{2:0>{4}.{3}f}'.format(decdegstring,int(dmins),dsec, decimal_places,decimal_places+3)]
+    else: return [int(rh),int(rmins),rsec],[ddeg,int(dmins),dsec]
 
 def sex2dec(rain,decin):
     """
@@ -267,7 +272,7 @@ def sex2dec(rain,decin):
     raout=ra[0]+ra[1]/60.+ra[2]/3600.
     if ':' in decin: dec=[float(val) for val in decin.split(':')]
     else: dec=[float(val) for val in decin.split(' ')]
-    if dec[0]<0: decout=dec[0]-dec[1]/60.-dec[2]/3600.
+    if dec[0]<0 or '-' in decin.split(' ')[0]: decout=dec[0]-dec[1]/60.-dec[2]/3600.
     else: decout=dec[0]+dec[1]/60.+dec[2]/3600.
     return [raout,decout]
 
@@ -431,7 +436,7 @@ def convpix2sky(headerin,xin,yin,outcoordsys='same',outcoordequinox='J2000.0',fo
             if forceimagesys is not None: headerframe=forceimagesys
             else: raise(Exception('Input header has no valid RADESYS/RADECSYS frame, and forceimagesys not specified...'))
         outcoordSC=SkyCoord(ra=pixarr[0][0], dec=pixarr[0][1], unit='deg', frame=headerframe.lower(), equinox=outcoordequinox).transform_to(outcoordsys.lower())
-        return [incoordSC.ra.value,incoordSC.dec.value]
+        return [outcoordSC.ra.value,outcoordSC.dec.value]
 
 def makesimpleheader(headerin,naxis=2,radesys=None,equinox=None,pywcsdirect=False):
     """
@@ -870,6 +875,28 @@ def cropfits3D_coords(datain,hdrin,centerRADEC,radius_asec,zbounds=[0,None],newr
         return cropdat,crophdr,centerpixcrop
     else: return cropdat,crophdr
 
+def smooth_image(datain, sigma=3):
+    """
+    Simple wrapper to call skimage.filters.gaussian(), to perform simple image
+    smoothing. This can be useful for e.g., matching another image resolution, 
+    smoothing over noise to boost apparent dynamic range, etc.
+    
+    Parameters
+    ----------
+    datain : array 
+        Input fits image array.  Can either be a 2D image or a 3D (multichannel)
+        set of images.
+    sigma : int or float
+        The sigma value (in pixels) for Gaussian smoothing
+    
+    Returns
+    -------
+    array
+        smoothed_image
+    """
+    if len(datain.shape)==2: return filters.gaussian(datain, sigma=sigma)
+    else: return filters.gaussian(datain, sigma=sigma, multichannel=True)
+
 def hex_to_rgb(hexstring):
     """
     Converts a hexadecimal string to RGB tuple 
@@ -1074,7 +1101,7 @@ def combine_multicolor(im_list_colorized,gamma=2.2,inverse=False):
     if inverse==True: combined_RGB=1.-combined_RGB #gamma correction
     return combined_RGB
 
-def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath, tickcolor='w', labelcolor='k', facecolor='w', minorticks=True, dpi=150):
+def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath, xaxislabel='RA', yaxislabel='DEC', tickcolor='w', labelcolor='k', facecolor='w', minorticks=True, dpi=150):
     """
     Convenience function to plot and save a single multicolor RGB image.
     
@@ -1090,6 +1117,10 @@ def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath, tickcolor='w', 
         String to use for plot title.  e.g. "My crazy 5-color image", or empty quotes "" for nothing.
     savepath : str 
         Path to save file to.  e.g., "./plots/mycrazyimage.pdf"
+    xaxislabel: str
+        Label to use for x-axis. Default='RA'
+    yaxislabel: str
+        Label to use for y-axis. Default='DEC'
     tickcolor : str  
         Color to use for ticks in plot, default = 'w'. 
     labelcolor : str 
@@ -1127,11 +1158,13 @@ def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath, tickcolor='w', 
     rapars.set_ticks(number=6,size=8,color=tickcolor); 
     decpars.set_ticks(number=6,size=8,color=tickcolor); 
     rapars.set_ticklabel(size=10,color=labelcolor); decpars.set_ticklabel(size=10,color=labelcolor); 
+    ax1.set_xlabel(xaxislabel, color=labelcolor); 
+    ax1.set_ylabel(yaxislabel, color=labelcolor)
     #ax1.coords.frame.set_linewidth(1.5)
     plt.savefig(savepath,bbox_inches='tight',dpi=dpi,facecolor=fig1.get_facecolor())
     plt.clf(); plt.close('all')
 
-def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,savepath,tickcolor='w', labelcolor='k',facecolor='w', supy=.8, dpi=150, minorticks=True):
+def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,savepath,xaxislabel='RA', yaxislabel='DEC',tickcolor='w', labelcolor='k',facecolor='w', supy=.8, dpi=150, minorticks=True):
     """
     Convenience function to compare a pure RGB image with your multicolor RGB plot, and save to file.
     
@@ -1151,6 +1184,10 @@ def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,save
         String for super title (centered at top of plot, super title applies to whole figure)
     savepath : str 
         Path to save file to.  e.g., "./plots/mycrazyimage.pdf"
+    xaxislabel: str
+        Label to use for x-axes. Default='RA'
+    yaxislabel: str
+        Label to use for y-axes. Default='DEC'
     tickcolor : str  
         Color to use for ticks in plot, default = 'w'. 
     labelcolor : str 
@@ -1193,6 +1230,8 @@ def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,save
         rapars.set_separator(('$^\mathrm{H}$', "'", '"'))
         #decpars.ticklabels.set_rotation(45) #Rotate ticklabels
         #decpars.ticklabels.set_color(xkcdrust) #Ticklabel Color
+        ax.set_xlabel(xaxislabel, color=labelcolor); 
+        ax.set_ylabel(yaxislabel, color=labelcolor)
     plt.subplots_adjust(wspace=0.3)
     ax2.set_title(ax2title,color=labelcolor)
     for ax in [ax1, ax2]: 
@@ -1221,6 +1260,9 @@ def saveRGBfits(savepath,multicolorRGBdat,commonhdr,overwrite=True):
     pyfits.writeto(savepath,np.swapaxes(np.swapaxes(multicolorRGBdat,0,2),2,1),commonhdr, overwrite=overwrite)
 
 class Header_Editor(HasTraits):
+    """
+    FITS image header editor window
+    """
     #info = Instance(UIInfo)
     contents=Str(multi_line=True, editor=CodeEditor() )
     
@@ -1336,6 +1378,8 @@ class ControlPanel(HasTraits):
     
     image_scale=Str('linear')
     scale_dropdown=Enum(['linear','sqrt','squared','log','power','sinh','asinh'])
+    smooth_image=Bool(False)
+    smooth_sigma=Float(3.0, auto_set=False,enter_set=True)
     
     imagecolor=Str('#FFFFFF') 
     imagecolor_picker=ColorTrait((255,255,255))
@@ -1404,6 +1448,10 @@ class ControlPanel(HasTraits):
                    Item('updatebutton', tooltip=u"Update with the new min/max values", show_label=False),
                    ), #Hgroup of Min/Max, Zscale, update
             Item('scale_dropdown',label='Scale',show_label=True),
+            HGroup(Item('smooth_image', style='custom', label='Smooth image', tooltip='Click to perform Gaussian smoothing'),
+                   Item('smooth_sigma', label='Smoothing \u03C3 (pixels)', 
+                        tooltip=u"Number of pixels for sigma in Gaussian smoothing" ),
+                  ),
                 
         ), #End of Left column
         
@@ -1561,6 +1609,27 @@ class ControlPanel(HasTraits):
         #self.image_figure.canvas.draw()
         self.status_string_right = "Min/max determined by zscale"
     
+    def _smooth_image_changed(self):
+        try: self.data
+        except: self.status_string_right = "No fits file loaded yet!"; return
+        if self.smooth_image == True:
+            self.image_colorRGB=filters.gaussian(self.image_colorRGB, sigma=self.smooth_sigma, )#multichannel=True)
+        else: 
+            self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
+            self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
+        self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
+        self.image_figure.canvas.draw()
+        self.status_string_right = 'Image smoothing turned '+['On' if self.smooth_image == True else 'Off'][0]
+    def _smooth_sigma_changed(self):
+        try: self.data
+        except: self.status_string_right = "No fits file loaded yet!"; return
+        if self.smooth_image == True:
+            self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
+            self.image_colorRGB=filters.gaussian(self.image_colorRGB, sigma=self.smooth_sigma, )#multichannel=True)
+            self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
+            self.image_figure.canvas.draw()
+            self.status_string_right = 'Image smoothed with \u03C3 = %.2f pixels'%(self.smooth_sigma)
+    
     def _plotbutton_individual_fired(self):
         try: self.data
         except: self.status_string_right = "No fits file loaded yet!"; return
@@ -1689,7 +1758,14 @@ class multicolorfits_viewer(HasTraits):
     
     tickcolor=Str('0.9')#,auto_set=False,enter_set=True) #Apparently need to set to TextEditor explicitly below...
     tickcolor_picker=ColorTrait((230,230,230))
+    showminorticks=Bool(True)
     sexdec=Enum('Sexagesimal','Decimal')
+    sexdec_x_formatter=Str('hh:mm:ss.ss')
+    sexdec_y_formatter=Str('dd:mm:ss.ss')
+    sex_x_formatter=Str('hh:mm:ss.ss')
+    sex_y_formatter=Str('dd:mm:ss.ss')
+    dec_x_formatter=Str('d.dddddd')
+    dec_y_formatter=Str('d.dddddd')
     
     plotbutton_combined = Button(u"Plot Combined Image")
     plotbutton_inverted_combined = Button(u"Plot Inverted Combined Image")
@@ -1741,12 +1817,22 @@ class multicolorfits_viewer(HasTraits):
                 
                 VGroup(
                     HGroup(
-                      Item('tickcolor',label='Tick Color',show_label=True, \
-                          tooltip='Color of ticks: standard name float[0..1], or #hex', \
-                          editor=TextEditor(auto_set=False, enter_set=True,)),
-                      Item('tickcolor_picker',label='Pick',show_label=True,editor=ColorEditor()), 
-                      Item('sexdec',label='Coordinate Style',tooltip=u'Display coordinates in sexagesimal or decimal', \
-                           show_label=True),
+                      VGroup(
+                        Item('tickcolor',label='Tick Color',show_label=True, \
+                            tooltip='Color of ticks: standard name float[0..1], or #hex', \
+                            editor=TextEditor(auto_set=False, enter_set=True,)),
+                        Item('tickcolor_picker',label='Pick',show_label=True,editor=ColorEditor()), 
+                        Item('showminorticks', style='custom', label='Display minor ticks'),
+                        ),
+                      VGroup(
+                        Item('sexdec',label='Coordinate Style',tooltip=u'Display coordinates in sexagesimal or decimal', \
+                            show_label=True),
+                        #auto_set=input set on each keystroke, enter_set=set after Enter
+                        Item('sexdec_x_formatter',label='X-axis tick format',tooltip=u'Format for the x tick labels', \
+                            show_label=True, editor=TextEditor(auto_set=False, enter_set=True,)),
+                        Item('sexdec_y_formatter',label='Y-axis tick format',tooltip=u'Format for the y tick labels', \
+                            show_label=True, editor=TextEditor(auto_set=False, enter_set=True,)),
+                        ),
                       ),
                     Item('figure_combined', editor=MPLFigureEditor(),show_label=False, width=900, height=800, resizable=True),
                   HGroup(
@@ -1785,6 +1871,16 @@ class multicolorfits_viewer(HasTraits):
         return blankdata
     
     def update_radecpars(self):
+        try: 
+            if '-' in self.hdr['CTYPE1']: self.xlabel=self.hdr['CTYPE1'].split('-')[0] 
+            else: self.xlabel=['CTYPE1'][:4]
+        except: self.xlabel='x'
+        try: 
+            if '-' in self.hdr['CTYPE2']: self.ylabel=self.hdr['CTYPE2'].split('-')[0]
+            else: self.ylabel=['CTYPE2'][:4]
+        except: self.ylabel='y'
+        self.image_axes.set_xlabel(self.xlabel); 
+        self.image_axes.set_ylabel(self.ylabel)
         self.rapars = self.image_axes.coords[0]
         self.decpars = self.image_axes.coords[1]
         self.rapars.set_ticks(color=self.tickcolor); self.decpars.set_ticks(color=self.tickcolor)
@@ -1792,18 +1888,19 @@ class multicolorfits_viewer(HasTraits):
         #self.rapars.set_ticklabel(size=8); self.decpars.set_ticklabel(size=8); #size here means the tick length
         ##self.rapars.set_ticks(spacing=10*u.arcmin, color='white', exclude_overlapping=True)
         ##self.decpars.set_ticks(spacing=5*u.arcmin, color='white', exclude_overlapping=True)
-        self.rapars.display_minor_ticks(True); #self.rapars.set_minor_frequency(10)
-        self.decpars.display_minor_ticks(True)
+        self.rapars.display_minor_ticks(self.showminorticks)#(True); #self.rapars.set_minor_frequency(10)
+        self.decpars.display_minor_ticks(self.showminorticks)#(True)
         if self.sexdec=='Sexagesimal':
-            self.rapars.set_major_formatter('hh:mm:ss.ss')
-            self.decpars.set_major_formatter('dd:mm:ss.ss')
+            self.rapars.set_major_formatter(self.sex_x_formatter)#('hh:mm:ss.ss')
+            self.decpars.set_major_formatter(self.sex_y_formatter)#('dd:mm:ss.ss')
             #self.rapars.set_separator(('$^\mathrm{H}$', "'", '"'))
-            self.rapars.set_separator(('H ', "' ", '" '))
+            self.rapars.set_separator(('$^\mathrm{H}$ ', "' ", '" '))
             #format_xcoord=lambda x,y: '{}i$^\mathrm{H}${}{}{}'.format(x[0],x[1],"'",x[2],'"')
             #self.image_axes.format_coord=format_xcoord
         else: 
-            self.rapars.set_major_formatter('d.dddddd')
-            self.decpars.set_major_formatter('d.dddddd')
+            self.rapars.set_major_formatter(self.dec_x_formatter)#('d.dddddd')
+            self.decpars.set_major_formatter(self.dec_y_formatter)#('d.dddddd')
+            #self.rapars.set_separator(('$\degree$ ','')) #<-- Nope, currently this only affects sexagesimal
         ##self.decpars.ticklabels.set_rotation(45) #Rotate ticklabels
         ##self.decpars.ticklabels.set_color(xkcdrust) #Ticklabel Color
     
@@ -1848,11 +1945,36 @@ class multicolorfits_viewer(HasTraits):
         #print(self.tickcolor_picker.name())
         self.tickcolor=self.tickcolor_picker.name()
     
+    @on_trait_change('showminorticks')
+    def update_showminorticks(self):
+        self.update_radecpars()
+        self.figure_combined.canvas.draw()
+        self.status_string_right = 'Minor ticks turned '+['On' if self.showminorticks is True else 'Off'][0]
+    
     @on_trait_change('sexdec')
     def update_sexdec(self): 
         self.update_radecpars()
+        if self.sexdec=='Sexagesimal': 
+            self.sexdec_x_formatter=self.sex_x_formatter
+            self.sexdec_y_formatter=self.sex_y_formatter
+        else: 
+            self.sexdec_x_formatter=self.dec_x_formatter
+            self.sexdec_y_formatter=self.dec_y_formatter
         self.figure_combined.canvas.draw()
         self.status_string_right = 'Coordinate style changed to '+self.sexdec
+    
+    @on_trait_change('sexdec_x_formatter')
+    def update_sexdec_x_formatter(self): 
+        if self.sexdec=='Sexagesimal': self.sex_x_formatter=self.sexdec_x_formatter
+        else: self.dec_x_formatter=self.sexdec_x_formatter
+        self.figure_combined.canvas.draw()
+        self.status_string_right = 'X-axis tick format changed to '+self.sex_x_formatter
+    @on_trait_change('sexdec_y_formatter')
+    def update_sexdec_y_formatter(self): 
+        if self.sexdec=='Sexagesimal': self.sex_y_formatter=self.sexdec_y_formatter
+        else: self.dec_y_formatter=self.sexdec_y_formatter
+        self.figure_combined.canvas.draw()
+        self.status_string_right = 'Y-axis tick format changed to '+self.sex_y_formatter
     
     def _plotbutton_combined_fired(self):
         try: self.panel1.data
@@ -1987,6 +2109,8 @@ if __name__ == '__main__':
 
 ### TODO wishlist ###
 
+##
+## GUI
 #* Put fields for including titles - overall title on main image, colored interior titles for individual images.
 #* streamline the circular dependencies (datamin/datamax and percent_min/percent_max)
 #* incorporate ability to regrid the images -- OR new version that loads in data arrays that haven't yet been saved to .fits
@@ -1995,7 +2119,9 @@ if __name__ == '__main__':
 #* Include options for displaying coordinate grid (thin lines over the image) - color and maybe transparency to control on/off
 #* Option for GLON/GLAT or others
 #* Button to plot final image in greyscale (for printing), and maybe for colorblindness varieties?
-#* update manual plotting  param printout button 
-
-
+#* Simple on-the-fly smoothing option (to decrease appearance of noise)
+#* Save/restore state, similar to DS9 backup option
+#* Possibly enable significantly downsampled image thumbnails for a 'fast preview mode', to speed up interactive limit adj.
+#* Add option to select between for ICRS (RA/DEC) and Galactic (GLON/GLAT)
+#* rcParams editor
 
