@@ -33,13 +33,13 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 # -- Project information -----------------------------------------------------
 
 project = 'multicolorfits'
-copyright = '2021, Phil Cigan'
+copyright = '2022, Phil Cigan'
 author = 'Phil Cigan'
 
 # The short X.Y version
-version = '2.0'
+version = '2.1'
 # The full version, including alpha/beta/rc tags
-release = '2.0.3'
+release = '2.1.0'
 
 
 # -- General configuration ---------------------------------------------------
