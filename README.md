@@ -1,12 +1,14 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 2.0.3
+version 2.1.0
 
 API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
 
 
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3256060.svg)](https://doi.org/10.5281/zenodo.3256060)
+[![PyPI version](https://badge.fury.io/py/multicolorfits.svg)](https://badge.fury.io/py/multicolorfits)
+[![Downloads](https://pepy.tech/badge/multicolorfits)](https://pepy.tech/project/multicolorfits)
 
 
 Sharing/Customization: Please, play around!  (MIT License)
@@ -91,18 +93,20 @@ Also see some more example images below.
 
 * GUI can load up to 4 images (you could customize it to include more)
     - Can copy/paste into input box or use file explorer
-    - **__Note:__** At the moment, all input images must share a common pixel grid (no reprojection is done on the fly, though functions are included to do this manually in scripts)
+    - **__Note:__** At the moment, all input images must share a common pixel grid (no reprojection is done on the fly, though functions are included to do this manually in scripts.  On-the-fly reprojection will come in a future update.)
 * Specify your preferred color for each image:
     - Type in HEX/HTML color code (or fraction 0.0--1.0 for shades of grey)
     - Use a GUI color picker -- allows interactive color selection
 * Interactively adjust each image's stretch and levels
     - Stretch functions include linear, square root, squared, log, power, sinh, asinh
     - Specify data min/max with input boxes, slidebar, or auto min/max & Zscale buttons
+* Edit component image headers, with an option to save out to .txt
+* Simple Gaussian smoothing on individual component images
 * View each input image separately in the left panel, and the combined image in the right panel
 * Ability to adjust the gamma value (default=2.2)
-* Specify WCS as sexagesimal or degree
+* Specify WCS as sexagesimal or degree, and adjust tick formatting
 * Can specify WCS tick color with input box or color picker (useful for changing to light ticks with dark background)
-* Use of matplotlib interactive plot buttons (zoom/pan/home/ edit labels/ etc.)
+* Use of matplotlib interactive plot buttons (zoom/pan/home/ edit labels/ etc.), just below the image panels
 * The main window (right panel) has a status bar that prints out the cursor's current position in world coordinates, and also prints out the R,G,B values at that pixel.
 * Save image (.png, .jpg, .pdf...)
 * Save fits file with RGB channels
@@ -194,7 +198,7 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 - The RGB color gamut is more limited than other colorspaces such as, e.g., CIE LAB, so you may not be able to get some specific colors you want
 - I haven't completely finished developing the 'inverted' (white background) RGB feature, so it doesn't behave 100% as expected
 - What you see on the screen will not likely appear the same way on printed paper -- need to convert RGB to CMYK for that.
-- Currently all input files must have same projection/pixel grid -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that. See the WLM tutorial for example usage of the functions for this that are included with multicolorfits.
+- Currently all input files must have same projection/pixel grid in the GUI -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that, and multicolorfits also includes some command line functions for reprojection. See the WLM tutorial for example usage of the functions for this that are included with multicolorfits.
 - This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files. (UN-checking the Auto-Refresh button at the top of the GUI will help.)  This could certainly be improved in future versions.
 
 

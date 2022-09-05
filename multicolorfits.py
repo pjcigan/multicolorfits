@@ -1,11 +1,11 @@
 ### MultiColorFits
-### v2.0
+### v2.1
 ### written by Phil Cigan
 __author__ = "Phil Cigan <pcigan@gmu.edu>"
-__version__ = "2.0.3"
+__version__ = "2.1.0"
 
 
-#Some resources for now: traits(ui) and chaco --> Though probably don't want to use Chaco as my normal code uses matplotlib
+#Some resources for now: 
 #https://docs.enthought.com/traitsui/tutorials/traits_ui_scientific_app.html
 #http://scipy-cookbook.readthedocs.io/items/EmbeddingInTraitsGUI.html
 #http://www.scipy-lectures.org/advanced/traits/index.html#example
@@ -69,14 +69,16 @@ from traits.api import Any, Instance
 
 from traits.api import HasTraits, Button, Instance, List, Str, Enum, Float, File, Any, Bool
 from traits.api import Array, CInt, Int, CFloat, on_trait_change, Range, Dict, Button
-from traitsui.api import View, Item, Group, VGroup, HSplit, CheckListEditor, HGroup, Handler, StatusItem, TextEditor, FileEditor, BooleanEditor
+from traitsui.api import View, Item, Group, VGroup, HSplit, CheckListEditor, HGroup, Handler, StatusItem, TextEditor, FileEditor, BooleanEditor, CodeEditor, Action, OKButton, CancelButton
 from traitsui.ui_info import UIInfo
+from traitsui.file_dialog import save_file
 
 from traitsui.api import ColorTrait,ColorEditor
 
 from skimage import color as ski_color
 #from skimage.exposure import adjust_gamma  #Just use custom function, as this doesn't handle NaNs
 from skimage.exposure import rescale_intensity
+from skimage import filters
 
 import colorsys
 
@@ -92,9 +94,9 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredDrawingArea
 from astropy.coordinates import SkyCoord
 
 try: import reproject
-except: print('reproject package required for some options in task reproject2D()')
+except: print('multicolorfits: reproject package required for some options in task reproject2D()')
 try: import kapteyn
-except: print('kapteyn package required for some options in task reproject2D()')
+except: print('multicolorfits: kapteyn package required for some options in task reproject2D()')
 
 
 ##########################################################################
@@ -189,7 +191,7 @@ def force_hdr_to_2D(hdrin):
         Output 2D header
     """
     hdr2D=hdrin.copy()
-    for item in ['CRVAL3','CRPIX3','CDELT3','CTYPE3','CUNIT3','NAXIS3','CRVAL4','CRPIX4','CDELT4','CUNIT4','CTYPE4', 'NAXIS4', 'PC03_01','PC04_01','PC03_02','PC04_02','PC01_03','PC02_03','PC03_03','PC04_03','PC01_04','PC02_04','PC03_04','PC04_04']: 
+    for item in ['CRVAL3','CRPIX3','CDELT3','CTYPE3','CUNIT3','NAXIS3', 'CRVAL4','CRPIX4','CDELT4','CUNIT4','CTYPE4', 'NAXIS4', 'PC03_01','PC04_01','PC03_02','PC04_02', 'PC01_03','PC02_03','PC03_03','PC04_03','PC01_04','PC02_04','PC03_04','PC04_04']: 
         #del hdr2D[item]
         try: hdr2D.remove(item) 
         except: pass
@@ -211,7 +213,7 @@ def force_hdr_floats(hdrin):
     astropy.io.fits.header
         Output header
     """
-    for fc in ['CRPIX1','CRPIX2','CRVAL1','CRVAL2','CDELT1','CDELT2','CD1_1','CD1_2','CD2_1','CD2_2','CROTA','CROTA2','EQUINOX']: 
+    for fc in ['CRPIX1','CRPIX2','CRVAL1','CRVAL2','CDELT1','CDELT2','CD1_1','CD1_2','CD2_1','CD2_2', 'CROTA','CROTA2','EQUINOX']: 
         try: hdrin.set(fc,float(hdrin[fc])) 
         except: pass
 
@@ -240,10 +242,14 @@ def dec2sex(rain,decin,as_string=False,decimal_places=2):
     #dmins,dsec=divmod(decin*3600,60)
     #ddeg,dmins=divmod(dmins,60)
     ddeg=int(decin)
+    if ddeg==0 and decin<0: ddeg=np.NZERO #Case of -0 degrees
     dmins=int(abs(decin-ddeg)*60)
     dsec=(abs((decin-ddeg)*60)-dmins)*60
-    if as_string==True: return ['{0}:{1}:{2:0>{4}.{3}f}'.format(int(rh),int(rmins),rsec,decimal_places,decimal_places+3),'{0}:{1}:{2:0>{4}.{3}f}'.format(int(ddeg),int(dmins),dsec,decimal_places,decimal_places+3)]
-    else: return [int(rh),int(rmins),rsec],[int(ddeg),int(dmins),dsec]
+    if as_string==True: 
+        if ddeg==0 and decin<0: decdegstring='-00'
+        else: decdegstring='{0:0>2d}'.format(ddeg)
+        return ['{0:0>2d}:{1:0>2d}:{2:0>{4}.{3}f}'.format(int(rh),int(rmins),rsec, decimal_places,decimal_places+3), '{0}:{1:0>2d}:{2:0>{4}.{3}f}'.format(decdegstring,int(dmins),dsec, decimal_places,decimal_places+3)]
+    else: return [int(rh),int(rmins),rsec],[ddeg,int(dmins),dsec]
 
 def sex2dec(rain,decin):
     """
@@ -266,7 +272,7 @@ def sex2dec(rain,decin):
     raout=ra[0]+ra[1]/60.+ra[2]/3600.
     if ':' in decin: dec=[float(val) for val in decin.split(':')]
     else: dec=[float(val) for val in decin.split(' ')]
-    if dec[0]<0: decout=dec[0]-dec[1]/60.-dec[2]/3600.
+    if dec[0]<0 or '-' in decin.split(' ')[0]: decout=dec[0]-dec[1]/60.-dec[2]/3600.
     else: decout=dec[0]+dec[1]/60.+dec[2]/3600.
     return [raout,decout]
 
@@ -291,7 +297,8 @@ def getcdelts(hdrin,getrot=False):
         try: 
             #Checks for PC matrix, which will modify the CDELT values
             pc1_1=hdrin['PC1_1']; pc1_2=hdrin['PC1_2']; pc2_1=hdrin['PC2_1']; pc2_2=hdrin['PC2_2']; 
-            cdelt1*=np.sqrt(pc1_1**2+pc1_2**2)*np.sign(pc1_1); cdelt2*=np.sqrt(pc2_1**2+pc2_2**2)*np.sign(pc2_2)
+            cdelt1*=np.sqrt(pc1_1**2+pc1_2**2)*np.sign(pc1_1); 
+            cdelt2*=np.sqrt(pc2_1**2+pc2_2**2)*np.sign(pc2_2);
             crota=np.arctan(pc1_2/pc1_1)*180./np.pi #CROTA(2) is in degrees, from North
         except: 
             try: crota=hdrin['CROTA2']
@@ -299,14 +306,17 @@ def getcdelts(hdrin,getrot=False):
                 try: crota=hdrin['CROTA']  
                 except: crota=0.
     except:
-        try: cd1_1=float(hdrin['CD1_1']); cd1_2=float(hdrin['CD1_2']); cd2_1=float(hdrin['CD2_1']); cd2_2=float(hdrin['CD2_2']); 
+        try: 
+            cd1_1=float(hdrin['CD1_1']); cd1_2=float(hdrin['CD1_2']); 
+            cd2_1=float(hdrin['CD2_1']); cd2_2=float(hdrin['CD2_2']); 
         except: raise(Exception('Header does not contain CDELT2 or CD2_2 cards...'))
-        cdelt1=np.sqrt(cd1_1**2+cd1_2**2)*np.sign(cd1_1); cdelt2=np.sqrt(cd2_1**2+cd2_2**2)*np.sign(cd2_2)
+        cdelt1=np.sqrt(cd1_1**2+cd1_2**2)*np.sign(cd1_1); 
+        cdelt2=np.sqrt(cd2_1**2+cd2_2**2)*np.sign(cd2_2);
         crota=np.arctan(cd1_2/cd1_1)*180./np.pi #CROTA(2) is in degrees, from North
     if getrot==False: return cdelt1,cdelt2
     else: return cdelt1,cdelt2,crota
 
-def convsky2pix(headerin,rain,decin,precise=False,checksys=False,incoordsys='fk5',incoordequinox='J2000.0',forceimagesys=None, originindex=0):
+def convsky2pix(headerin,rain,decin,precise=False,checksys=False,incoordsys='fk5', incoordequinox='J2000.0', forceimagesys=None, originindex=0):
     """
     Helper function to convert sky coordinates to pixel coordinates.  Now uses SkyCoord.
     
@@ -426,7 +436,7 @@ def convpix2sky(headerin,xin,yin,outcoordsys='same',outcoordequinox='J2000.0',fo
             if forceimagesys is not None: headerframe=forceimagesys
             else: raise(Exception('Input header has no valid RADESYS/RADECSYS frame, and forceimagesys not specified...'))
         outcoordSC=SkyCoord(ra=pixarr[0][0], dec=pixarr[0][1], unit='deg', frame=headerframe.lower(), equinox=outcoordequinox).transform_to(outcoordsys.lower())
-        return [incoordSC.ra.value,incoordSC.dec.value]
+        return [outcoordSC.ra.value,outcoordSC.dec.value]
 
 def makesimpleheader(headerin,naxis=2,radesys=None,equinox=None,pywcsdirect=False):
     """
@@ -457,8 +467,8 @@ def makesimpleheader(headerin,naxis=2,radesys=None,equinox=None,pywcsdirect=Fals
     else: 
         wcstemp=pywcs.WCS(naxis=naxis); 
         if naxis>2:
-            wcstemp.wcs.crpix=[float(headerin['CRPIX1']),float(headerin['CRPIX2']),float(headerin['CRPIX3'])]
-            wcstemp.wcs.crval=[float(headerin['CRVAL1']),float(headerin['CRVAL2']),float(headerin['CRVAL3'])]
+            wcstemp.wcs.crpix=[float(headerin['CRPIX1']), float(headerin['CRPIX2']), float(headerin['CRPIX3'])]
+            wcstemp.wcs.crval=[float(headerin['CRVAL1']), float(headerin['CRVAL2']), float(headerin['CRVAL3'])]
             wcstemp.wcs.ctype=[headerin['CTYPE1'],headerin['CTYPE2'],headerin['CTYPE3']]
             try: wcstemp.wcs.cunit=[headerin['CUNIT1'],headerin['CUNIT2'],headerin['CUNIT3']]
             except: pass
@@ -669,7 +679,7 @@ def reproject2D(mapin,hdrfrom,hdrto,scale=False,method='interp',interpdict={'ord
     if returnfootprint==True and method!='kapteyn': return map_reproj,map_footprint
     else: return map_reproj
 
-def reproject3D(mapin,hdrfrom,hdrto,scale=False,method='kapteyn',parallel=True,returnfootprint=False,print_progress=False):
+def reproject3D(mapin,hdrfrom,hdrto,scale=False,method='kapteyn',parallel=True,returnfootprint=False, print_progress=False):
     """
     Function that reprojects a 3D cube from the parameters in one header to the parameters in another header.
     
@@ -683,14 +693,14 @@ def reproject3D(mapin,hdrfrom,hdrto,scale=False,method='kapteyn',parallel=True,r
         for zz in range(mapin.shape[-3]): 
             if print_progress==True: 
                 drawProgressBar(float(zz)/mapin.shape[-3],prefix='  Reprojecting channels ',suffix='  %i of %i'%(zz+1,mapin.shape[-3]))
-            tmpcube[zz],tmpcube_foot[zz]=reproject2D(mapin[zz,:,:],hdrfrom,hdrto,scale=scale,method=method,returnfootprint=True)
+            tmpcube[zz],tmpcube_foot[zz]=reproject2D(mapin[zz,:,:],hdrfrom,hdrto, scale=scale, method=method, returnfootprint=True)
         if print_progress==True: drawProgressBar(1.,prefix='  Reprojecting channels ',suffix='  %i of %i    \n'%(zz+1,mapin.shape[-3]))
         return np.array([tmpcube[zz] for zz in range(mapin.shape[-3])]),np.array([tmpcube_foot[zz] for zz in range(mapin.shape[-3])])
     else: 
         for zz in range(mapin.shape[-3]): 
             if print_progress==True: 
                 drawProgressBar(float(zz)/mapin.shape[-3],prefix='  Reprojecting channels ',suffix='  %i of %i'%(zz+1,mapin.shape[-3]))
-            tmpcube[zz]=reproject2D(mapin[zz,:,:],hdrfrom,hdrto,scale=scale,method=method,returnfootprint=False)
+            tmpcube[zz]=reproject2D(mapin[zz,:,:],hdrfrom,hdrto, scale=scale, method=method, returnfootprint=False)
         if print_progress==True: drawProgressBar(1.,prefix='  Reprojecting channels ',suffix='  %i of %i    \n'%(zz+1,mapin.shape[-3]))
         return np.array([tmpcube[zz] for zz in range(mapin.shape[-3])])
 
@@ -730,7 +740,7 @@ def cropfits2D(datain,hdrin,xbounds,ybounds,newref=None,savenew=False,overwrite=
     if True in [item<0 for item in np.concatenate([xbounds,ybounds])]: 
         raise(Exception('Specified X/Y crop bounds are negative - must be positive.'))
     try: cropdata=datain[ybounds[0]:ybounds[1]+1,xbounds[0]:xbounds[1]+1]
-    except: cropdata=datain[int(np.round(ybounds[0])):int(np.round(ybounds[1]+1)),int(np.round(xbounds[0])):int(np.round(xbounds[1]+1))]
+    except: cropdata=datain[int(np.round(ybounds[0])):int(np.round(ybounds[1]+1)), int(np.round(xbounds[0])):int(np.round(xbounds[1]+1))]
     crophdr=hdrin.copy()
     crophdr['NAXIS2'],crophdr['NAXIS1']=cropdata.shape
     if newref=='center':
@@ -760,7 +770,7 @@ def cropfits2D(datain,hdrin,xbounds,ybounds,newref=None,savenew=False,overwrite=
         except: print('Could not save file to path supplied.')
     return cropdata,crophdr
 
-def cropfits3D(datain,hdrin,xbounds,ybounds,zbounds=[0,None],newref=None,savenew=False,overwrite=False):
+def cropfits3D(datain,hdrin,xbounds,ybounds, zbounds=[0,None], newref=None, savenew=False, overwrite=False):
     """
     Function to crop a 3D fits cube to the specified pixel bounds.  
     
@@ -774,7 +784,7 @@ def cropfits3D(datain,hdrin,xbounds,ybounds,zbounds=[0,None],newref=None,savenew
     elif len(datain.shape)<3: raise(Exception('File does not have 3 dimensions!  Use cropfits2D.'))
     else: pass
     if zbounds[1] is None: zbounds[1]=datain.shape[-3]+1
-    cropdata=datain[int(zbounds[0]):int(zbounds[1]),int(np.round(ybounds[0])):int(np.round(ybounds[1]))+1,int(np.round(xbounds[0])):int(np.round(xbounds[1]))+1]
+    cropdata=datain[int(zbounds[0]):int(zbounds[1]), int(np.round(ybounds[0])):int(np.round(ybounds[1]))+1, int(np.round(xbounds[0])):int(np.round(xbounds[1]))+1]
     crophdr=hdrin.copy()
     crophdr['NAXIS3'],crophdr['NAXIS2'],crophdr['NAXIS1']=cropdata.shape; crophdr['CRPIX3']-=int(zbounds[0])
     if newref=='center':
@@ -799,7 +809,7 @@ def cropfits3D(datain,hdrin,xbounds,ybounds,zbounds=[0,None],newref=None,savenew
         except: print('Could not save file to path supplied.')
     return cropdata,crophdr
 
-def cropfits2D_coords(datain,hdrin,centerRADEC,radius_asec,newref=None,savenew=False,overwrite=False,return_cropcenterpix=False, coords_in='dec', checksys=False,incoordsys='fk5',incoordequinox='J2000.0',forceimagesys=None):
+def cropfits2D_coords(datain,hdrin,centerRADEC,radius_asec,newref=None,savenew=False,overwrite=False, return_cropcenterpix=False, coords_in='dec', checksys=False,incoordsys='fk5',incoordequinox='J2000.0', forceimagesys=None):
     """
     Function to crop a 2D fits image based on sky coordinates and specified width.  
     
@@ -847,7 +857,7 @@ def cropfits2D_coords(datain,hdrin,centerRADEC,radius_asec,newref=None,savenew=F
         return cropdat,crophdr,centerpixcrop
     else: return cropdat,crophdr
 
-def cropfits3D_coords(datain,hdrin,centerRADEC,radius_asec,zbounds=[0,None],newref=None,savenew=False,overwrite=False, coords_in='dec',  return_cropcenterpix=False):
+def cropfits3D_coords(datain,hdrin,centerRADEC,radius_asec,zbounds=[0,None],newref=None,savenew=False, overwrite=False, coords_in='dec',  return_cropcenterpix=False):
     """
     Function to crop a 3D fits cube based on sky coordinates and specified width. 
     
@@ -859,11 +869,33 @@ def cropfits3D_coords(datain,hdrin,centerRADEC,radius_asec,zbounds=[0,None],newr
     if zbounds[1] is None: zbounds[1]=datain.shape[0]+1
     centerpix=convsky2pix(hdrin,centerRADEC[0],centerRADEC[1],precise=True)
     pixextent=(radius_asec/3600)/getcdelts(hdrin)[1] #Total crop image width is center+/- radius_asec
-    cropdat,crophdr=cropfits3D(datain,hdrin, [centerpix[0]-pixextent,centerpix[0]+pixextent],[centerpix[1]-pixextent,centerpix[1]+pixextent],zbounds=zbounds, newref=newref,savenew=savenew,overwrite=overwrite)
+    cropdat,crophdr=cropfits3D(datain,hdrin, [centerpix[0]-pixextent,centerpix[0]+pixextent],[centerpix[1]-pixextent,centerpix[1]+pixextent],zbounds=zbounds, newref=newref, savenew=savenew, overwrite=overwrite)
     if return_cropcenterpix==True: 
         centerpixcrop=convsky2pix(crophdr,centerRADEC[0],centerRADEC[1],precise=True)
         return cropdat,crophdr,centerpixcrop
     else: return cropdat,crophdr
+
+def smooth_image(datain, sigma=3):
+    """
+    Simple wrapper to call skimage.filters.gaussian(), to perform simple image
+    smoothing. This can be useful for e.g., matching another image resolution, 
+    smoothing over noise to boost apparent dynamic range, etc.
+    
+    Parameters
+    ----------
+    datain : array 
+        Input fits image array.  Can either be a 2D image or a 3D (multichannel)
+        set of images.
+    sigma : int or float
+        The sigma value (in pixels) for Gaussian smoothing
+    
+    Returns
+    -------
+    array
+        smoothed_image
+    """
+    if len(datain.shape)==2: return filters.gaussian(datain, sigma=sigma)
+    else: return filters.gaussian(datain, sigma=sigma, multichannel=True)
 
 def hex_to_rgb(hexstring):
     """
@@ -954,7 +986,7 @@ except:
         c_hex=mplc.rgb2hex(mplc.colorConverter.to_rgb(c)) #could use to_rgba to keep alpha
         return c_hex
 
-def greyRGBize_image(datin,rescalefn='linear',scaletype='abs',min_max=[None,None],gamma=2.2,checkscale=False):
+def greyRGBize_image(datin,rescalefn='linear',scaletype='abs',min_max=[None,None], gamma=2.2, checkscale=False):
     """
     ### Takes an image and returns 3-frame [R,G,B] (vals from 0...1)
     
@@ -997,9 +1029,11 @@ def greyRGBize_image(datin,rescalefn='linear',scaletype='abs',min_max=[None,None
     if checkscale is not False: 
         plt.clf(); plt.close('all')
         fig0=plt.figure(0); 
-        ax1=fig0.add_subplot(121); plt.imshow(datin,interpolation='nearest',origin='lower',cmap='gist_gray'); 
+        ax1=fig0.add_subplot(121); 
+        plt.imshow(datin,interpolation='nearest',origin='lower',cmap='gist_gray'); 
         plt.title('Input Image')
-        ax2=fig0.add_subplot(122); plt.imshow(dat_greyRGB**(1./gamma),interpolation='nearest',origin='lower'); 
+        ax2=fig0.add_subplot(122); 
+        plt.imshow(dat_greyRGB**(1./gamma),interpolation='nearest',origin='lower'); 
         plt.title('Scaled Image')
         plt.show(); #plt.clf(); plt.close('all')
 
@@ -1034,7 +1068,7 @@ def colorize_image(image, colorvals, colorintype='hsv',dtype=np.float64,gammacor
     if colorintype.lower()=='hsv_dict': hue,saturation,v=colorvals['hue'],colorvals['sat'],colorvals['v'],
     else: hue,saturation,v=colorvals
     if gammacorr_color!=1: 
-        hue,saturation,v=colorsys.rgb_to_hsv(*np.array(colorsys.hsv_to_rgb(hue,saturation,v))**gammacorr_color)
+        hue,saturation,v = colorsys.rgb_to_hsv( *np.array( colorsys.hsv_to_rgb(hue,saturation,v) )**gammacorr_color )
     hsv[:, :, 2] *= v 
     hsv[:, :, 1] = saturation
     hsv[:, :, 0] = hue
@@ -1067,7 +1101,7 @@ def combine_multicolor(im_list_colorized,gamma=2.2,inverse=False):
     if inverse==True: combined_RGB=1.-combined_RGB #gamma correction
     return combined_RGB
 
-def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath,tickcolor='w',labelcolor='k',facecolor='w', minorticks=True, dpi=150):
+def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath, xaxislabel='RA', yaxislabel='DEC', tickcolor='w', labelcolor='k', facecolor='w', minorticks=True, dpi=150):
     """
     Convenience function to plot and save a single multicolor RGB image.
     
@@ -1083,6 +1117,10 @@ def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath,tickcolor='w',la
         String to use for plot title.  e.g. "My crazy 5-color image", or empty quotes "" for nothing.
     savepath : str 
         Path to save file to.  e.g., "./plots/mycrazyimage.pdf"
+    xaxislabel: str
+        Label to use for x-axis. Default='RA'
+    yaxislabel: str
+        Label to use for y-axis. Default='DEC'
     tickcolor : str  
         Color to use for ticks in plot, default = 'w'. 
     labelcolor : str 
@@ -1117,13 +1155,16 @@ def plotsinglemulticolorRGB(multicolorin,hdrin,axtitle,savepath,tickcolor='w',la
     rapars.set_separator(('$^\mathrm{H}$', "'", '"'))
     #decpars.ticklabels.set_rotation(45) #Rotate ticklabels
     #rapars.set_ticks(color=tickcolor); decpars.set_ticks(color=tickcolor)
-    rapars.set_ticks(number=6,size=8,color=tickcolor); decpars.set_ticks(number=6,size=8,color=tickcolor); 
+    rapars.set_ticks(number=6,size=8,color=tickcolor); 
+    decpars.set_ticks(number=6,size=8,color=tickcolor); 
     rapars.set_ticklabel(size=10,color=labelcolor); decpars.set_ticklabel(size=10,color=labelcolor); 
+    ax1.set_xlabel(xaxislabel, color=labelcolor); 
+    ax1.set_ylabel(yaxislabel, color=labelcolor)
     #ax1.coords.frame.set_linewidth(1.5)
     plt.savefig(savepath,bbox_inches='tight',dpi=dpi,facecolor=fig1.get_facecolor())
     plt.clf(); plt.close('all')
 
-def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,savepath,tickcolor='w',labelcolor='k',facecolor='w', supy=.8, dpi=150, minorticks=True):
+def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,savepath,xaxislabel='RA', yaxislabel='DEC',tickcolor='w', labelcolor='k',facecolor='w', supy=.8, dpi=150, minorticks=True):
     """
     Convenience function to compare a pure RGB image with your multicolor RGB plot, and save to file.
     
@@ -1143,6 +1184,10 @@ def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,save
         String for super title (centered at top of plot, super title applies to whole figure)
     savepath : str 
         Path to save file to.  e.g., "./plots/mycrazyimage.pdf"
+    xaxislabel: str
+        Label to use for x-axes. Default='RA'
+    yaxislabel: str
+        Label to use for y-axes. Default='DEC'
     tickcolor : str  
         Color to use for ticks in plot, default = 'w'. 
     labelcolor : str 
@@ -1174,7 +1219,8 @@ def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,save
         decpars = ax.coords[1]
         #rapars.set_ticks(color=tickcolor); decpars.set_ticks(color=tickcolor)
         rapars.set_ticks(number=6,color=tickcolor); decpars.set_ticks(number=6,color=tickcolor); 
-        rapars.set_ticklabel(size=8,color=labelcolor); decpars.set_ticklabel(size=8,color=labelcolor); 
+        rapars.set_ticklabel(size=8,color=labelcolor); 
+        decpars.set_ticklabel(size=8,color=labelcolor); 
         #rapars.set_ticks(spacing=10*u.arcmin, color='white', exclude_overlapping=True)
         #decpars.set_ticks(spacing=5*u.arcmin, color='white', exclude_overlapping=True)
         rapars.display_minor_ticks(minorticks); #rapars.set_minor_frequency(10)
@@ -1184,6 +1230,8 @@ def comparemulticolorRGB_pureRGB(rgbin,multicolorin,hdrin,ax2title,suptitle,save
         rapars.set_separator(('$^\mathrm{H}$', "'", '"'))
         #decpars.ticklabels.set_rotation(45) #Rotate ticklabels
         #decpars.ticklabels.set_color(xkcdrust) #Ticklabel Color
+        ax.set_xlabel(xaxislabel, color=labelcolor); 
+        ax.set_ylabel(yaxislabel, color=labelcolor)
     plt.subplots_adjust(wspace=0.3)
     ax2.set_title(ax2title,color=labelcolor)
     for ax in [ax1, ax2]: 
@@ -1209,7 +1257,56 @@ def saveRGBfits(savepath,multicolorRGBdat,commonhdr,overwrite=True):
     overwrite : bool
         Passed to astropy.io.fits.writeto()
     """
-    pyfits.writeto(savepath,np.swapaxes(np.swapaxes(multicolorRGBdat,0,2),2,1),commonhdr,overwrite=overwrite)
+    pyfits.writeto(savepath,np.swapaxes(np.swapaxes(multicolorRGBdat,0,2),2,1),commonhdr, overwrite=overwrite)
+
+class Header_Editor(HasTraits):
+    """
+    FITS image header editor window
+    """
+    #info = Instance(UIInfo)
+    contents=Str(multi_line=True, editor=CodeEditor() )
+    
+    #: The OK, Cancel and Load/Save Header buttons:
+    ok = Button("OK")
+    cancel = Button("Cancel")
+    ##update_button = Button("Apply Update") #, action="update_header")
+    #update = Action(name="Apply Update", action="update_header", tooltip='Apply changes to image header')
+    loadheader = Action(name="Load from file", action="loadhdrfromfile", 
+                 tooltip='Load header from text file')
+    saveheader = Action(name="Save to file", action="savehdrtofile", 
+                 tooltip='Save header to text file')
+    
+    traits_view=View(
+        Item(name='contents',show_label=False),
+        buttons=[loadheader, saveheader, OKButton, CancelButton],
+        #buttons=[update, loadheader, saveheader, OKButton, CancelButton],
+        title='FITS Header', resizable=True,
+    )
+    
+    
+    #def _contents_changed(self):
+    #    #This will update the header after ANY changes (i.e., while typing)
+    #    self.hdr=pyfits.Header.fromstring(self.contents) #No, this creates Header_Editor.hdr...
+    
+    #def _update_button_fired(self): 
+    #    self.hdr=pyfits.Header.fromstring(self.contents) #No, this creates Header_Editor.hdr...
+    
+    #def update_header(self):
+    #    self.hdr=pyfits.Header.fromstring(self.contents) #No, this creates Header_Editor.hdr...
+    #    #--> Still cannot figure out how to make a pop-up window modify an
+    #    #    object in the parent window...
+    
+    def loadhdrfromfile(self):
+        hdrloadpath=open_file()
+        with open(hdrloadpath, 'r') as headerinfile:
+            self.contents=headerinfile.read()
+    
+    def savehdrtofile(self):
+        #hdrstring=self.hdr.tostring(sep='\n')
+        hdrsavepath=save_file()
+        f=open(hdrsavepath,'w')
+        f.write( self.contents )
+        f.close()
 
 class _MPLFigureEditor(Editor):
     """
@@ -1269,6 +1366,7 @@ class ControlPanel(HasTraits):
     image_axes = Instance(Axes)
     image_axesimage = Instance(AxesImage)
     image_xsize = Int(256); image_ysize = Int(256)
+    #hdrstring=Str(multiline=True)
     
     datamin= Float(0.0,auto_set=False,enter_set=True) #Say, in mJy
     datamax= Float(1.0,auto_set=False,enter_set=True) #auto_set=input set on each keystroke, enter_set=set after Enter
@@ -1280,15 +1378,21 @@ class ControlPanel(HasTraits):
     
     image_scale=Str('linear')
     scale_dropdown=Enum(['linear','sqrt','squared','log','power','sinh','asinh'])
+    smooth_image=Bool(False)
+    smooth_sigma=Float(3.0, auto_set=False,enter_set=True)
     
     imagecolor=Str('#FFFFFF') 
     imagecolor_picker=ColorTrait((255,255,255))
     
     #plotbeam_button=Button('Add Beam (FWHM)')
     
-    plotbutton_individual = Button(u"Plot Single")
-    plotbutton_inverted_individual = Button(u"Plot Inverted Single")
-    clearbutton_individual = Button(u"Clear Single")
+    plotbutton_individual = Button(u"Plot Single Image")
+    plotbutton_inverted_individual = Button(u"Plot Inverted Single Image")
+    clearbutton_individual = Button(u"Clear Single Image")
+    
+    headerwindow=Instance(HasTraits)
+    open_headerwindow=Button('Edit Header')
+    applyheader=Button('Apply Header Changes')
     
     status_string_left=Str('')
     status_string_right=Str('')
@@ -1297,9 +1401,12 @@ class ControlPanel(HasTraits):
         self._init_params() #Set placeholder things like the WCS, tick color, map units...
         self.image = self._fresh_image() #Sets a blank image
         self.image_axes = self.image_figure.add_subplot(111,aspect=1)
-        self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray',origin='lower',interpolation='nearest')
+        self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray', origin='lower', interpolation='nearest')
         self.image_axes.axis('off')
+        #self.hdrstring='COMMENT  No image loaded'
+        self.hdr = pyfits.Header.fromstring('COMMENT  No image loaded')
     
+
     view = View(
       HSplit(
         VGroup( 
@@ -1308,35 +1415,51 @@ class ControlPanel(HasTraits):
             HGroup(
               VGroup(
                      Item('plotbutton_individual', tooltip=u"Plot the single image",show_label=False),
-                     Item('plotbutton_inverted_individual', tooltip=u"Plot the single inverted image",show_label=False),
+                     Item('plotbutton_inverted_individual', \
+                        tooltip=u"Plot the single inverted image", show_label=False),
                      Item('clearbutton_individual', tooltip=u"Clear the single image",show_label=False),
-                     Item('_'),
+                     Item('_'), Item('50'), #Spacer of 50 pixels
                      
+                     Item(name='open_headerwindow',show_label=False, \
+                        tooltip='Open header for editing in new window.\n' + 
+                                'To apply changes, click "Apply Header Changes".\n' + 
+                                'Clicking "Edit Header" again before applying\n' +
+                                '  will discard/cancel changes.'),
+                     Item(name='applyheader', show_label=False, \
+                        tooltip='Apply the modified header to the loaded .fits image'), 
+                     Item('_'),  Item('50'), #Spacer of 50 pixels
+                      
                      Item('imagecolor',label='Image Color',show_label=True, \
                       tooltip='Color of ticks: standard name float[0..1], or #hex', \
                       editor=TextEditor(auto_set=False, enter_set=True,)),
-                     Item('imagecolor_picker',label='Pick',show_label=True,editor=ColorEditor()),
+                     Item('imagecolor_picker',label='Pick Color',show_label=True,editor=ColorEditor()),
                      
                      ),
-              Item('image_figure', editor=MPLFigureEditor(), show_label=False, width=300, height=300,resizable=True),
+              Item('image_figure', editor=MPLFigureEditor(), show_label=False, width=300, height=300, resizable=True),
             ),
             HGroup(Item('datamin', tooltip=u"Minimum data val for scaling", show_label=True),
                    Item('datamax', tooltip=u"Maximum data val for scaling", show_label=True)),
             Item('percent_min', tooltip=u"Min. percentile for scaling", show_label=True),
             Item('percent_max', tooltip=u"Max. percentile for scaling", show_label=True),
             HGroup(Item('minmaxbutton', tooltip=u"Reset to data min/max", show_label=False),
-                   Item('zscalebutton', tooltip=u"Compute scale min/max from zscale algorithm", show_label=False),
+                   Item('zscalebutton', tooltip=u"Compute scale min/max from zscale algorithm",  
+                        show_label=False),
                    Item('50'), #Spacer of 50 pixels
                    Item('updatebutton', tooltip=u"Update with the new min/max values", show_label=False),
                    ), #Hgroup of Min/Max, Zscale, update
             Item('scale_dropdown',label='Scale',show_label=True),
+            HGroup(Item('smooth_image', style='custom', label='Smooth image', tooltip='Click to perform Gaussian smoothing'),
+                   Item('smooth_sigma', label='Smoothing \u03C3 (pixels)', 
+                        tooltip=u"Number of pixels for sigma in Gaussian smoothing" ),
+                  ),
                 
         ), #End of Left column
         
       ), #End of HSplit
       resizable=True, #height=0.75, width=0.75, #title=u"Multi-Color Image Combiner", 
       handler=MPLInitHandler,
-      statusbar = [StatusItem(name = 'status_string_left', width = 0.5), StatusItem(name = 'status_string_right', width = 0.5)]
+      statusbar = [StatusItem(name = 'status_string_left', width = 0.5), \
+                   StatusItem(name = 'status_string_right', width = 0.5)]
     ) #End of View
     
     def _init_params(self):
@@ -1365,13 +1488,24 @@ class ControlPanel(HasTraits):
             except: self.data=self.data[0,:,:]
             self.status_string_right = 'Dropped extra axes'
         
-        self.datamax_initial = np.asscalar(np.nanmax(self.data))
-        self.datamin_initial = np.asscalar(np.nanmin(self.data))
-        self.datamax = np.asscalar(np.nanmax(self.data))
-        self.datamin = np.asscalar(np.nanmin(self.data))
+        self.datamax_initial = np.nanmax(self.data).item()
+        self.datamin_initial = np.nanmin(self.data).item()
+        self.datamax = np.nanmax(self.data).item()
+        self.datamin = np.nanmin(self.data).item()
         
         self.in_use=True
         
+    def _headerwindow_default(self):
+        return Header_Editor()
+
+    def _open_headerwindow_fired(self):
+        self.headerwindow.contents=self.hdr.tostring(sep='\n')
+        self.headerwindow.edit_traits()
+    #def _open_headerwindow_changed(self):
+    #    self.hdr=pyfits.Header.fromstring(self.headerwindow.contents,sep='\n')
+
+    def _applyheader_fired(self):
+        self.hdr=pyfits.Header.fromstring(self.headerwindow.contents,sep='\n')
         
     #@on_trait_change('imagecolor')
     #def update_imagecolor(self): 
@@ -1390,7 +1524,7 @@ class ControlPanel(HasTraits):
         try: self.imagecolor_picker=hex_to_rgb(to_hex(self.imagecolor)) #update the picker color...
         except: pass
         ### self.image_greyRGB and self.image_colorRGB may not yet be instantiated if the color is changed before clicking 'plot'
-        try: self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
+        try: self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
         except: pass
         try: self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
         except: pass
@@ -1412,7 +1546,7 @@ class ControlPanel(HasTraits):
             #Disable automatic plot updating for large file sizes, to avoid hangs
             self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
             self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-            self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
+            self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
             self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
             self.image_figure.canvas.draw()
             self.status_string_right = "Updated scale using percentiles"
@@ -1424,7 +1558,7 @@ class ControlPanel(HasTraits):
             #Disable automatic plot updating for large file sizes, to avoid hangs
             self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
             self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-            self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
+            self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
             self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
             self.image_figure.canvas.draw()
             self.status_string_right = "Updated scale using percentiles"
@@ -1448,7 +1582,7 @@ class ControlPanel(HasTraits):
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         #*** Instead, should I just integrate my imscale class here instead of astropy? ...
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
+        self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
         
         self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
         
@@ -1475,6 +1609,27 @@ class ControlPanel(HasTraits):
         #self.image_figure.canvas.draw()
         self.status_string_right = "Min/max determined by zscale"
     
+    def _smooth_image_changed(self):
+        try: self.data
+        except: self.status_string_right = "No fits file loaded yet!"; return
+        if self.smooth_image == True:
+            self.image_colorRGB=filters.gaussian(self.image_colorRGB, sigma=self.smooth_sigma, )#multichannel=True)
+        else: 
+            self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
+            self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
+        self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
+        self.image_figure.canvas.draw()
+        self.status_string_right = 'Image smoothing turned '+['On' if self.smooth_image == True else 'Off'][0]
+    def _smooth_sigma_changed(self):
+        try: self.data
+        except: self.status_string_right = "No fits file loaded yet!"; return
+        if self.smooth_image == True:
+            self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
+            self.image_colorRGB=filters.gaussian(self.image_colorRGB, sigma=self.smooth_sigma, )#multichannel=True)
+            self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
+            self.image_figure.canvas.draw()
+            self.status_string_right = 'Image smoothed with \u03C3 = %.2f pixels'%(self.smooth_sigma)
+    
     def _plotbutton_individual_fired(self):
         try: self.data
         except: self.status_string_right = "No fits file loaded yet!"; return
@@ -1485,7 +1640,7 @@ class ControlPanel(HasTraits):
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         #Convert scale[0,1] image to greyscale RGB image
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
+        self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
         self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
         ###Using this set instead properly updates the axes labels to WCS, but the home zoom button won't work
         #self.image_figure.clf()
@@ -1506,7 +1661,7 @@ class ControlPanel(HasTraits):
         except: self.status_string_right = "No fits file loaded yet!"; return
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-        self.image_colorRGB=colorize_image(self.image_greyRGB,hexinv(self.imagecolor),colorintype='hex',gammacorr_color=self.gamma)
+        self.image_colorRGB=colorize_image(self.image_greyRGB, hexinv(self.imagecolor), colorintype='hex', gammacorr_color=self.gamma)
         self.image_axesimage.set_data(1.-self.image_colorRGB**(1./self.gamma)) 
         #self.image_axesimage.set_data(combine_multicolor([self.image_colorRGB,],gamma=self.gamma,inverse=True))  
         self.percent_min=np.round(nanpercofscore(self.data.ravel(),self.datamin,kind='strict'),2)
@@ -1520,7 +1675,7 @@ class ControlPanel(HasTraits):
         except: self.status_string_right = "No fits file loaded yet!"; return
         self.data_scaled=(scaling_fns[self.image_scale]() + ManualInterval(vmin=self.datamin,vmax=self.datamax))(self.data)
         self.image_greyRGB=ski_color.gray2rgb(adjust_gamma(self.data_scaled,self.gamma))
-        self.image_colorRGB=colorize_image(self.image_greyRGB,self.imagecolor,colorintype='hex',gammacorr_color=self.gamma)
+        self.image_colorRGB=colorize_image(self.image_greyRGB, self.imagecolor, colorintype='hex', gammacorr_color=self.gamma)
         self.image_axesimage.set_data(self.image_colorRGB**(1./self.gamma))
         self.image_figure.canvas.draw()
         self.status_string_right = "Plot updated"
@@ -1531,6 +1686,7 @@ class ControlPanel(HasTraits):
         self.in_use=False
         self.image_figure.clf()
         self.image = self._fresh_image()
+        self.hdr = pyfits.Header.fromstring('COMMENT  No image loaded')
         self.image_axes = self.image_figure.add_subplot(111,aspect=1)
         self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray',origin='lower',interpolation='nearest')
         self.image_axes.axis('off')
@@ -1602,11 +1758,18 @@ class multicolorfits_viewer(HasTraits):
     
     tickcolor=Str('0.9')#,auto_set=False,enter_set=True) #Apparently need to set to TextEditor explicitly below...
     tickcolor_picker=ColorTrait((230,230,230))
+    showminorticks=Bool(True)
     sexdec=Enum('Sexagesimal','Decimal')
+    sexdec_x_formatter=Str('hh:mm:ss.ss')
+    sexdec_y_formatter=Str('dd:mm:ss.ss')
+    sex_x_formatter=Str('hh:mm:ss.ss')
+    sex_y_formatter=Str('dd:mm:ss.ss')
+    dec_x_formatter=Str('d.dddddd')
+    dec_y_formatter=Str('d.dddddd')
     
-    plotbutton_combined = Button(u"Plot Combined")
-    plotbutton_inverted_combined = Button(u"Plot Inverted Combined")
-    clearbutton_combined = Button(u"Clear Combined")
+    plotbutton_combined = Button(u"Plot Combined Image")
+    plotbutton_inverted_combined = Button(u"Plot Inverted Combined Image")
+    clearbutton_combined = Button(u"Clear Combined Image")
     save_the_image = Button(u"Save Image")
     save_the_fits = Button(u"Save RGB Fits")
     print_params = Button(u"Print Params")
@@ -1629,7 +1792,7 @@ class multicolorfits_viewer(HasTraits):
         self._init_params() #Set placeholder things like the WCS, tick color, map units...
         self.image = self._fresh_image() #Sets a blank image
         self.image_axes = self.figure_combined.add_subplot(111,aspect=1)
-        self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray',origin='lower',interpolation='nearest')
+        self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray', origin='lower', interpolation='nearest')
         self.image_axes.text(50,50,'Currently, all images must share a common pixel grid before \nloading, as this GUI does not yet reproject on the fly. \nThe provided mcf.reproject2D() function can be used to achieve this.',color='w',ha='center')
         self.image_axes.set_xlabel(self.xlabel); self.image_axes.set_ylabel(self.ylabel)
         self.image_axes.tick_params(axis='both',color=self.tickcolor) #colors=... also sets label color
@@ -1654,14 +1817,24 @@ class multicolorfits_viewer(HasTraits):
                 
                 VGroup(
                     HGroup(
-                      Item('tickcolor',label='Tick Color',show_label=True, \
-                          tooltip='Color of ticks: standard name float[0..1], or #hex', \
-                          editor=TextEditor(auto_set=False, enter_set=True,)),
-                      Item('tickcolor_picker',label='Pick',show_label=True,editor=ColorEditor()), 
-                      Item('sexdec',label='Coordinate Style',tooltip=u'Display coordinates in sexagesimal or decimal', \
-                           show_label=True),
+                      VGroup(
+                        Item('tickcolor',label='Tick Color',show_label=True, \
+                            tooltip='Color of ticks: standard name float[0..1], or #hex', \
+                            editor=TextEditor(auto_set=False, enter_set=True,)),
+                        Item('tickcolor_picker',label='Pick',show_label=True,editor=ColorEditor()), 
+                        Item('showminorticks', style='custom', label='Display minor ticks'),
+                        ),
+                      VGroup(
+                        Item('sexdec',label='Coordinate Style',tooltip=u'Display coordinates in sexagesimal or decimal', \
+                            show_label=True),
+                        #auto_set=input set on each keystroke, enter_set=set after Enter
+                        Item('sexdec_x_formatter',label='X-axis tick format',tooltip=u'Format for the x tick labels', \
+                            show_label=True, editor=TextEditor(auto_set=False, enter_set=True,)),
+                        Item('sexdec_y_formatter',label='Y-axis tick format',tooltip=u'Format for the y tick labels', \
+                            show_label=True, editor=TextEditor(auto_set=False, enter_set=True,)),
+                        ),
                       ),
-                    Item('figure_combined', editor=MPLFigureEditor(),show_label=False, width=900, height=800,resizable=True),
+                    Item('figure_combined', editor=MPLFigureEditor(),show_label=False, width=900, height=800, resizable=True),
                   HGroup(
                     
                     Item('plotbutton_combined', tooltip=u"Plot the image",show_label=False),
@@ -1698,6 +1871,16 @@ class multicolorfits_viewer(HasTraits):
         return blankdata
     
     def update_radecpars(self):
+        try: 
+            if '-' in self.hdr['CTYPE1']: self.xlabel=self.hdr['CTYPE1'].split('-')[0] 
+            else: self.xlabel=['CTYPE1'][:4]
+        except: self.xlabel='x'
+        try: 
+            if '-' in self.hdr['CTYPE2']: self.ylabel=self.hdr['CTYPE2'].split('-')[0]
+            else: self.ylabel=['CTYPE2'][:4]
+        except: self.ylabel='y'
+        self.image_axes.set_xlabel(self.xlabel); 
+        self.image_axes.set_ylabel(self.ylabel)
         self.rapars = self.image_axes.coords[0]
         self.decpars = self.image_axes.coords[1]
         self.rapars.set_ticks(color=self.tickcolor); self.decpars.set_ticks(color=self.tickcolor)
@@ -1705,18 +1888,19 @@ class multicolorfits_viewer(HasTraits):
         #self.rapars.set_ticklabel(size=8); self.decpars.set_ticklabel(size=8); #size here means the tick length
         ##self.rapars.set_ticks(spacing=10*u.arcmin, color='white', exclude_overlapping=True)
         ##self.decpars.set_ticks(spacing=5*u.arcmin, color='white', exclude_overlapping=True)
-        self.rapars.display_minor_ticks(True); #self.rapars.set_minor_frequency(10)
-        self.decpars.display_minor_ticks(True)
+        self.rapars.display_minor_ticks(self.showminorticks)#(True); #self.rapars.set_minor_frequency(10)
+        self.decpars.display_minor_ticks(self.showminorticks)#(True)
         if self.sexdec=='Sexagesimal':
-            self.rapars.set_major_formatter('hh:mm:ss.ss')
-            self.decpars.set_major_formatter('dd:mm:ss.ss')
+            self.rapars.set_major_formatter(self.sex_x_formatter)#('hh:mm:ss.ss')
+            self.decpars.set_major_formatter(self.sex_y_formatter)#('dd:mm:ss.ss')
             #self.rapars.set_separator(('$^\mathrm{H}$', "'", '"'))
-            self.rapars.set_separator(('H ', "' ", '" '))
+            self.rapars.set_separator(('$^\mathrm{H}$ ', "' ", '" '))
             #format_xcoord=lambda x,y: '{}i$^\mathrm{H}${}{}{}'.format(x[0],x[1],"'",x[2],'"')
             #self.image_axes.format_coord=format_xcoord
         else: 
-            self.rapars.set_major_formatter('d.dddddd')
-            self.decpars.set_major_formatter('d.dddddd')
+            self.rapars.set_major_formatter(self.dec_x_formatter)#('d.dddddd')
+            self.decpars.set_major_formatter(self.dec_y_formatter)#('d.dddddd')
+            #self.rapars.set_separator(('$\degree$ ','')) #<-- Nope, currently this only affects sexagesimal
         ##self.decpars.ticklabels.set_rotation(45) #Rotate ticklabels
         ##self.decpars.ticklabels.set_color(xkcdrust) #Ticklabel Color
     
@@ -1761,11 +1945,36 @@ class multicolorfits_viewer(HasTraits):
         #print(self.tickcolor_picker.name())
         self.tickcolor=self.tickcolor_picker.name()
     
+    @on_trait_change('showminorticks')
+    def update_showminorticks(self):
+        self.update_radecpars()
+        self.figure_combined.canvas.draw()
+        self.status_string_right = 'Minor ticks turned '+['On' if self.showminorticks is True else 'Off'][0]
+    
     @on_trait_change('sexdec')
     def update_sexdec(self): 
         self.update_radecpars()
+        if self.sexdec=='Sexagesimal': 
+            self.sexdec_x_formatter=self.sex_x_formatter
+            self.sexdec_y_formatter=self.sex_y_formatter
+        else: 
+            self.sexdec_x_formatter=self.dec_x_formatter
+            self.sexdec_y_formatter=self.dec_y_formatter
         self.figure_combined.canvas.draw()
         self.status_string_right = 'Coordinate style changed to '+self.sexdec
+    
+    @on_trait_change('sexdec_x_formatter')
+    def update_sexdec_x_formatter(self): 
+        if self.sexdec=='Sexagesimal': self.sex_x_formatter=self.sexdec_x_formatter
+        else: self.dec_x_formatter=self.sexdec_x_formatter
+        self.figure_combined.canvas.draw()
+        self.status_string_right = 'X-axis tick format changed to '+self.sex_x_formatter
+    @on_trait_change('sexdec_y_formatter')
+    def update_sexdec_y_formatter(self): 
+        if self.sexdec=='Sexagesimal': self.sex_y_formatter=self.sexdec_y_formatter
+        else: self.dec_y_formatter=self.sexdec_y_formatter
+        self.figure_combined.canvas.draw()
+        self.status_string_right = 'Y-axis tick format changed to '+self.sex_y_formatter
     
     def _plotbutton_combined_fired(self):
         try: self.panel1.data
@@ -1782,7 +1991,7 @@ class multicolorfits_viewer(HasTraits):
         ###Using this set instead properly updates the axes labels to WCS, but the home zoom button won't work
         self.figure_combined.clf()
         self.image_axes = self.figure_combined.add_subplot(111,aspect=1,projection=self.wcs)
-        self.image_axesimage = self.image_axes.imshow(self.combined_RGB, origin='lower',interpolation='nearest')
+        self.image_axesimage = self.image_axes.imshow(self.combined_RGB, origin='lower', interpolation='nearest')
         
         self.update_radecpars()
         self.figure_combined.canvas.draw()
@@ -1796,7 +2005,7 @@ class multicolorfits_viewer(HasTraits):
         self.combined_RGB=combine_multicolor( [pan.image_colorRGB for pan in [self.panel1,self.panel2,self.panel3,self.panel4] if pan.in_use==True], inverse=True, gamma=self.gamma, )
         self.figure_combined.clf()
         self.image_axes = self.figure_combined.add_subplot(111,aspect=1,projection=self.wcs)
-        self.image_axesimage = self.image_axes.imshow(self.combined_RGB, origin='lower',interpolation='nearest')
+        self.image_axesimage = self.image_axes.imshow(self.combined_RGB, origin='lower', interpolation='nearest')
         self.update_radecpars()
         self.figure_combined.canvas.draw()
         self.status_string_right = "Plot updated"
@@ -1808,7 +2017,7 @@ class multicolorfits_viewer(HasTraits):
         self.figure_combined.clf()
         self.image = self._fresh_image()
         self.image_axes = self.figure_combined.add_subplot(111,aspect=1)
-        self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray', origin='lower',interpolation='nearest')
+        self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray', origin='lower', interpolation='nearest')
         self.xlabel='x'; self.ylabel='y'
         self.image_axes.set_xlabel(self.xlabel); self.image_axes.set_ylabel(self.ylabel)
         self.image_axes.tick_params(axis='both',color=self.tickcolor)
@@ -1866,7 +2075,7 @@ class multicolorfits_viewer(HasTraits):
         #Generate a generic header with correct WCS and comments about the colors that made it
         #... come back and finish this later...
         dlg = FileDialog(action='save as')
-        if dlg.open() == OK: pyfits.writeto(dlg.path,np.swapaxes(np.swapaxes(self.combined_RGB,0,2),2,1),self.hdr)
+        if dlg.open() == OK: pyfits.writeto(dlg.path, np.swapaxes(np.swapaxes(self.combined_RGB,0,2),2,1), self.hdr)
     
     def _print_params_fired(self): 
         print('\n\nRGB Image plot params:')
@@ -1875,7 +2084,7 @@ class multicolorfits_viewer(HasTraits):
             pan_i+=1
             if pan.in_use==True: 
                 print('image%i: '%(pan_i))
-                print('    vmin = %.3e , vmax = %.3e, scale = %s'%(pan.datamin,pan.datamax,pan.image_scale))
+                print('    vmin = %.3e , vmax = %.3e, scale = %s'%(pan.datamin, pan.datamax, pan.image_scale))
                 print("    image color = '%s'"%(pan.imagecolor))
         print("gamma = %.1f , tick color = '%s'\n"%(self.gamma,self.tickcolor))
         #print('vmin=%.3e, vmax=%.3e'%(self.panel1.datamin,self.panel1.datamax))
@@ -1900,6 +2109,8 @@ if __name__ == '__main__':
 
 ### TODO wishlist ###
 
+##
+## GUI
 #* Put fields for including titles - overall title on main image, colored interior titles for individual images.
 #* streamline the circular dependencies (datamin/datamax and percent_min/percent_max)
 #* incorporate ability to regrid the images -- OR new version that loads in data arrays that haven't yet been saved to .fits
@@ -1908,7 +2119,9 @@ if __name__ == '__main__':
 #* Include options for displaying coordinate grid (thin lines over the image) - color and maybe transparency to control on/off
 #* Option for GLON/GLAT or others
 #* Button to plot final image in greyscale (for printing), and maybe for colorblindness varieties?
-#* update manual plotting  param printout button 
-
-
+#* Simple on-the-fly smoothing option (to decrease appearance of noise)
+#* Save/restore state, similar to DS9 backup option
+#* Possibly enable significantly downsampled image thumbnails for a 'fast preview mode', to speed up interactive limit adj.
+#* Add option to select between for ICRS (RA/DEC) and Galactic (GLON/GLAT)
+#* rcParams editor
 

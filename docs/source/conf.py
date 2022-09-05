@@ -26,20 +26,20 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return MagicMock()
 
-MOCK_MODULES = ['pyqt4','pyqt5','PyQt4','PyQt4.QtCore','PyQt4.QtGui','PyQt5','PyQt5.QtGui','PyQt5.QtWidgets', 'pyface.qt','pyface.qt.QtCore', 'matplotlib.backends.backend_qt5agg','matplotlib.backends.backend_qt4agg' ]
+MOCK_MODULES = ['pyqt4','pyqt5','PyQt4','PyQt4.QtCore','PyQt4.QtGui','PyQt5','PyQt5.QtGui','PyQt5.QtWidgets','PyQt5.QtCore', 'pyface.qt','pyface.qt.QtCore', 'matplotlib.backends.backend_qt5agg','matplotlib.backends.backend_qt4agg' , 'setuptools']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
 # -- Project information -----------------------------------------------------
 
 project = 'multicolorfits'
-copyright = '2019, Phil Cigan'
+copyright = '2021, Phil Cigan'
 author = 'Phil Cigan'
 
 # The short X.Y version
-version = ''
+version = '2.0'
 # The full version, including alpha/beta/rc tags
-release = '2.0'
+release = '2.0.3'
 
 
 # -- General configuration ---------------------------------------------------
