@@ -1793,7 +1793,7 @@ class multicolorfits_viewer(HasTraits):
         self.image = self._fresh_image() #Sets a blank image
         self.image_axes = self.figure_combined.add_subplot(111,aspect=1)
         self.image_axesimage = self.image_axes.imshow(self.image, cmap='gist_gray', origin='lower', interpolation='nearest')
-        self.image_axes.text(50,50,'Currently, all images must share a common pixel grid before \nloading, as this GUI does not yet reproject on the fly. \nThe provided mcf.reproject2D() function can be used to achieve this.',color='w',ha='center')
+        self.image_axes.text(50,50,'Currently, all images must share a common \npixel grid before loading, as this GUI does not \nyet reproject on the fly. \n\nThe provided mcf.reproject2D() function can be used \nfor reprojections before loading here.',color='w',ha='center',va='center')# fontsize=10)
         self.image_axes.set_xlabel(self.xlabel); self.image_axes.set_ylabel(self.ylabel)
         self.image_axes.tick_params(axis='both',color=self.tickcolor) #colors=... also sets label color
         try: self.image_axes.coords.frame.set_color(self.tickcolor) #Updates the frame color.  .coords won't exist until WCS set
@@ -1803,7 +1803,9 @@ class multicolorfits_viewer(HasTraits):
     view = View(HGroup(
                     Item('AutoRefresh', style='custom', label='Auto-Refresh Plots (un-check box to increase speed for large files)'),
                     Item('50'), #Spacer of 50 pixels
-                    Item("gamma",label=u"Gamma",show_label=True), 
+                    Item("gamma", label=u"Gamma", show_label=True, springy=False, width=-50), 
+                    Item('50'),
+                    #Item('title', width=-1, springy=True),  #Dummy to fill right
                 ), #Top Panel HGroup
                 Item('_'),
                 
@@ -1834,7 +1836,9 @@ class multicolorfits_viewer(HasTraits):
                             show_label=True, editor=TextEditor(auto_set=False, enter_set=True,)),
                         ),
                       ),
-                    Item('figure_combined', editor=MPLFigureEditor(),show_label=False, width=900, height=800, resizable=True),
+                    HGroup(
+                        Item('figure_combined', editor=MPLFigureEditor(),show_label=False, width=600, height=600, resizable=True),
+                    ),
                   HGroup(
                     
                     Item('plotbutton_combined', tooltip=u"Plot the image",show_label=False),
@@ -2119,7 +2123,6 @@ if __name__ == '__main__':
 #* Include options for displaying coordinate grid (thin lines over the image) - color and maybe transparency to control on/off
 #* Option for GLON/GLAT or others
 #* Button to plot final image in greyscale (for printing), and maybe for colorblindness varieties?
-#* Simple on-the-fly smoothing option (to decrease appearance of noise)
 #* Save/restore state, similar to DS9 backup option
 #* Possibly enable significantly downsampled image thumbnails for a 'fast preview mode', to speed up interactive limit adj.
 #* Add option to select between for ICRS (RA/DEC) and Galactic (GLON/GLAT)
