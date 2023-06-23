@@ -36,18 +36,16 @@ try:
     matplotlib.use('Qt5Agg') 
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-    from traitsui.qt4.editor import Editor 
-    try: 
-        #from traitsui.editor import Editor #--> No, non-qt4 version raises an error about 'set_size_policy'...
-        from traitsui.basic_editor_factory import BasicEditorFactory
-    except: 
-        #from traitsui.qt4.editor import Editor 
-        from traitsui.qt4.basic_editor_factory import BasicEditorFactory
+    #from traitsui.editor import Editor #--> No, non-qt4 version raises an error about 'set_size_policy'...
+    try: from traitsui.qt.editor import Editor 
+    except: from traitsui.qt4.editor import Editor #some versions require to call .qt4 instead of .qt
+    try: from traitsui.basic_editor_factory import BasicEditorFactory
+    except: from traitsui.qt4.basic_editor_factory import BasicEditorFactory
     #These two for changing the cursor
     from PyQt5.QtCore import Qt #PyQt5 only for python3
     from PyQt5.QtWidgets import QApplication, QMenu #PyQt5 only for python3
 except:
-    ### PyQt4
+    ### PyQt4 fallback
     matplotlib.use('Qt4Agg') 
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT
