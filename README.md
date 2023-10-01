@@ -1,6 +1,6 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 2.1.0
+version 2.1.1
 
 API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
 
@@ -32,13 +32,13 @@ If you find this useful for your work, giving me (Phil Cigan) a nod in your ackn
 * astropy
 * scipy
 * pyface
-* PyQt5 (PyQt4 should still work) 
+* PyQt(6) (PyQt5 as a fallback, and PyQt4 should still work for older pythons) 
 * traits, traitsui
 * scikit-image (skimage)
 
 * reproject and/or kapteyn, for the optional reprojection convenience functions (montagepy suppport may be added in the future)
 
-- Tested in python 3.7 (and python 3.4 & 2.7 with PyQt4)
+- Tested in python 3.10, 3.7 (and python 3.4 & 2.7 with PyQt4)
 
 
 # Installation
@@ -142,7 +142,6 @@ I developed this tool for a variety of reasons.
 * I wanted to experiment with non-standard display options -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
 
 
-I made a short tutorial a couple years ago on the basics of colorizing and combining fits images, which should provide a decent starting point: [http://research.endlessfernweh.com/multi-color-images/](http://research.endlessfernweh.com/multi-color-images/)  
 
 
 Here are some useful resources for downloading some nicely tidied-up fits files suitable for using in this tool:
@@ -152,6 +151,7 @@ Here are some useful resources for downloading some nicely tidied-up fits files 
 - [SkyView (Virtual Observatory)](https://skyview.gsfc.nasa.gov/current/cgi/titlepage.pl)
 - [Sloan Digital Sky Survey (SDSS) Sky Server](http://skyserver.sdss.org/dr15/en/tools/explore/Summary.aspx?)
 - [Tom Williams' data_buttons, a very useful tool for grabbing data for your favorite target](https://github.com/thomaswilliamsastro/data_buttons)
+- [obsplanning.download_cutout() to get fits images via SkyView.get_images() ](https://github.com/pjcigan/obsplanning)
 
 I will be using the Kepler, M51, M101, M106 data found at the Chandra link above for the examples below.
 

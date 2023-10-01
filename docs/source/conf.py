@@ -26,20 +26,20 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return MagicMock()
 
-MOCK_MODULES = ['pyqt4','pyqt5','PyQt4','PyQt4.QtCore','PyQt4.QtGui','PyQt5','PyQt5.QtGui','PyQt5.QtWidgets','PyQt5.QtCore', 'pyface.qt','pyface.qt.QtCore','pyface.qt.QtGui', 'traitsui.qt4.editor', 'matplotlib.backends.backend_qt5agg','matplotlib.backends.backend_qt4agg' , 'setuptools']
+MOCK_MODULES = ['pyqt4','pyqt5','PyQt4','PyQt4.QtCore','PyQt4.QtGui','PyQt5','PyQt5.QtGui','PyQt5.QtWidgets','PyQt5.QtCore',  'PyQt','PyQt.QtCore','PyQt.QtWidgets', 'pyface.qt','pyface.qt.QtCore','pyface.qt.QtGui', 'traitsui.qt4.editor', 'matplotlib.backends.backend_qtagg','matplotlib.backends.backend_qt5agg','matplotlib.backends.backend_qt4agg' , 'setuptools']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
 # -- Project information -----------------------------------------------------
 
 project = 'multicolorfits'
-copyright = '2022, Phil Cigan'
+copyright = '2023, Phil Cigan'
 author = 'Phil Cigan'
 
 # The short X.Y version
 version = '2.1'
 # The full version, including alpha/beta/rc tags
-release = '2.1.0'
+release = '2.1.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -62,6 +62,7 @@ extensions = [
     'sphinx.ext.githubpages',
     'recommonmark',
     'sphinx.ext.napoleon',
+    'sphinx_search.extension',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -81,7 +82,8 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+#language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -207,7 +209,8 @@ epub_exclude_files = ['search.html']
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+#intersphinx_mapping = {'https://docs.python.org/': None} #format deprecated, removed in Sphinx v>=8
+intersphinx_mapping = {'multicolorfits':('https://docs.python.org/', None)}
 
 # -- Options for todo extension ----------------------------------------------
 

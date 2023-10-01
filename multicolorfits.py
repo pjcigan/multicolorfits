@@ -1,8 +1,8 @@
 ### MultiColorFits
 ### v2.1
 ### written by Phil Cigan
-__author__ = "Phil Cigan <pcigan@gmu.edu>"
-__version__ = "2.1.0"
+__author__ = "Phil Cigan"
+__version__ = "2.1.1"
 
 
 #Some resources for now: 
@@ -32,29 +32,44 @@ from pyface.qt import QtGui, QtCore
 
 
 try:
-    ### python3 and PyQt5
-    matplotlib.use('Qt5Agg') 
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
+    ### python >= 3.7 and PyQt >= 6
+    #matplotlib.use('QtAgg') 
+    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
     #from traitsui.editor import Editor #--> No, non-qt4 version raises an error about 'set_size_policy'...
     try: from traitsui.qt.editor import Editor 
     except: from traitsui.qt4.editor import Editor #some versions require to call .qt4 instead of .qt
     try: from traitsui.basic_editor_factory import BasicEditorFactory
     except: from traitsui.qt4.basic_editor_factory import BasicEditorFactory
     #These two for changing the cursor
-    from PyQt5.QtCore import Qt #PyQt5 only for python3
-    from PyQt5.QtWidgets import QApplication, QMenu #PyQt5 only for python3
+    from PyQt.QtCore import Qt 
+    from PyQt.QtWidgets import QApplication, QMenu 
 except:
-    ### PyQt4 fallback
-    matplotlib.use('Qt4Agg') 
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT
-    from traitsui.qt4.editor import Editor
-    from traitsui.qt4.basic_editor_factory import BasicEditorFactory
-    #These two for changing the cursor
-    from PyQt4.QtCore import Qt
-    from PyQt4.QtGui import QApplication, QMenu
-    # Cursor shapes: http://ftp.ics.uci.edu/pub/centos0/ics-custom-build/BUILD/PyQt-x11-gpl-4.7.2/doc/html/qcursor.html
+    try:
+        ### python3 and PyQt5
+        matplotlib.use('Qt5Agg') 
+        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
+        #from traitsui.editor import Editor #--> No, non-qt4 version raises an error about 'set_size_policy'...
+        try: from traitsui.qt.editor import Editor 
+        except: from traitsui.qt4.editor import Editor #some versions require to call .qt4 instead of .qt
+        try: from traitsui.basic_editor_factory import BasicEditorFactory
+        except: from traitsui.qt4.basic_editor_factory import BasicEditorFactory
+        #These two for changing the cursor
+        from PyQt5.QtCore import Qt #PyQt5 only for python3
+        from PyQt5.QtWidgets import QApplication, QMenu #PyQt5 only for python3
+    except:
+        ### PyQt4 fallback 
+        #   --> will eventually remove this, as it was mainly for python 2.7/3.4 compatibility
+        matplotlib.use('Qt4Agg') 
+        from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT
+        from traitsui.qt4.editor import Editor
+        from traitsui.qt4.basic_editor_factory import BasicEditorFactory
+        #These two for changing the cursor
+        from PyQt4.QtCore import Qt
+        from PyQt4.QtGui import QApplication, QMenu
+        # Cursor shapes: http://ftp.ics.uci.edu/pub/centos0/ics-custom-build/BUILD/PyQt-x11-gpl-4.7.2/doc/html/qcursor.html
 
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
@@ -1709,7 +1724,7 @@ class ControlPanel(HasTraits):
         else:  self.status_string_left = ""
     
     def image_on_click(self, event):
-        if event.xdata is None or event.ydata is None or event.button is not 1: return #Covers when click outside of main plot
+        if event.xdata is None or event.ydata is None or event.button != 1: return #Covers when click outside of main plot
         #print(event)
         x = int(np.round(event.xdata)) #xdata is the actual pixel position.  xy is in 'display space', i.e. pixels in the canvas
         y = int(np.round(event.ydata))
@@ -2046,7 +2061,7 @@ class multicolorfits_viewer(HasTraits):
         else:  self.status_string_left = ""
     
     def image_on_click(self, event):
-        if event.xdata is None or event.ydata is None or event.button is not 1: return #Covers when click outside of main plot
+        if event.xdata is None or event.ydata is None or event.button != 1: return #Covers when click outside of main plot
         #print(event)
         x = int(np.round(event.xdata)) #xdata is the actual pixel position.  xy is in 'display space', i.e. pixels in the canvas
         y = int(np.round(event.ydata))

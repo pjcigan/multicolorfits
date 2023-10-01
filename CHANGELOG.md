@@ -1,5 +1,9 @@
 # 2.1
 
+2023-09-27
+
+* Updated PyQt imports to use PyQt6 by default, to work with py 3.10 and M processor Macs.  PyQt5 is still there as a backup.  PyQt4 should still work for Python 3.4 and lower at the moment, but this may be phased out in future releases.
+
 2022-09-04
 
 * Added buttons in the left side panels to edit image headers
