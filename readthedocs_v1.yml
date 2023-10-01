@@ -1,0 +1,11 @@
+type: sphinx
+sphinx:
+    configuration: docs/source/conf.py
+    builder: html
+    fail_on_warning: false
+python:
+    version: 3
+    setup_py_install: true
+    pip_install: true
+    system_packages: false
+
