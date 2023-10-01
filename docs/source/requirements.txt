@@ -2,7 +2,7 @@ pyqt6
 astropy==5.2.1
 numpy==1.24.2
 matplotlib==3.7.0
-scipy==1.9.3
+scipy==1.10.0
 pyface==7.4.4
 traits
 traitsui
