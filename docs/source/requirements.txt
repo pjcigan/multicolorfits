@@ -1,9 +1,9 @@
 pyqt6
-astropy
-numpy
-matplotlib
-scipy
-pyface
+astropy==5.2.1
+numpy==1.24.2
+matplotlib==3.7.0
+scipy==1.9.3
+pyface==7.4.4
 traits
 traitsui
 scikit-image
