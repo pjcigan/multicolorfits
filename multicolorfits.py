@@ -474,7 +474,7 @@ def makesimpleheader(headerin,naxis=2,radesys=None,equinox=None,pywcsdirect=Fals
         Output header
     """
     if type(headerin)==str:
-        import astropy.io.fits as pyfits
+        #import astropy.io.fits as pyfits
         headerin=pyfits.getheader(headerin)
     if pywcsdirect==True: wcstemp=pywcs.WCS(header=headerin)
     else: 
