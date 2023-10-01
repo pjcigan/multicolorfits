@@ -62,7 +62,7 @@ extensions = [
     'sphinx.ext.githubpages',
     'recommonmark',
     'sphinx.ext.napoleon',
-    'sphinx_search.extension',
+    #'sphinx_search.extension',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
