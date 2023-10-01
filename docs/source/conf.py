@@ -26,7 +26,7 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return MagicMock()
 
-MOCK_MODULES = ['pyqt4','pyqt5','PyQt4','PyQt4.QtCore','PyQt4.QtGui','PyQt5','PyQt5.QtGui','PyQt5.QtWidgets','PyQt5.QtCore',  'PyQt','PyQt.QtCore','PyQt.QtWidgets', 'pyface.qt','pyface.qt.QtCore','pyface.qt.QtGui', 'traitsui.qt4.editor', 'matplotlib.backends.backend_qtagg','matplotlib.backends.backend_qt5agg','matplotlib.backends.backend_qt4agg' , 'setuptools', 'pyfits','pywcs','astropy.io.fits.connect']
+MOCK_MODULES = ['pyqt4','pyqt5','PyQt4','PyQt4.QtCore','PyQt4.QtGui','PyQt5','PyQt5.QtGui','PyQt5.QtWidgets','PyQt5.QtCore',  'PyQt','PyQt.QtCore','PyQt.QtWidgets', 'pyface.qt','pyface.qt.QtCore','pyface.qt.QtGui', 'traitsui.qt4.editor', 'matplotlib.backends.backend_qtagg','matplotlib.backends.backend_qt5agg','matplotlib.backends.backend_qt4agg' , 'setuptools', ]
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
