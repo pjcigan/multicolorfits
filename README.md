@@ -1,6 +1,6 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 2.1.1
+version 2.1.2
 
 API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
 
@@ -28,11 +28,11 @@ If you find this useful for your work, giving me (Phil Cigan) a nod in your ackn
 # Dependencies
 
 * numpy
-* matplotlib 
+* matplotlib
 * astropy
 * scipy
 * pyface
-* PyQt(6) (PyQt5 as a fallback, and PyQt4 should still work for older pythons) 
+* PyQt(6) (PyQt5 as a fallback, and PyQt4 should still work for older pythons)
 * traits, traitsui
 * scikit-image (skimage)
 
@@ -48,7 +48,7 @@ Install with pip
 pip install multicolorfits
 ```
 
-Alternatively, you can simply save a copy of multicolorfits.py in a local working directory.  This is suitable for running it in standalone mode (from the terminal), and does not require a regular installation with pip. 
+Alternatively, you can simply save a copy of multicolorfits.py in a local working directory.  This is suitable for running it in standalone mode (from the terminal), and does not require a regular installation with pip.
 
 
 # Usage
@@ -75,13 +75,13 @@ When the viewer appears:
     * In the left panel, load up to four images.  A snapshot preview will be visible after clicking "Plot Single".
     * Adjust the stretch function and levels of each image.  
 2. Combine the component images to plot a single combined image
-    * In the right panel (at the top), adjust the tick color and WCS format 
+    * In the right panel (at the top), adjust the tick color and WCS format
     * At the bottom of the right panel, click "Plot combined" to display the final product
 3. Re-adjust component images and re-plot as necessary
 4. If desired, use buttons at the bottom right to print some of the plot params, save as image, or save as a fits RGB cube.
 
 
-# Tutorials / Examples 
+# Tutorials / Examples
 
 [Follow this link for some multicolorfits tutorials](./examples.md)
 
@@ -167,7 +167,7 @@ HOWEVER - what if you have, say, only two images?  Maybe you only have the red a
 ![The overall hue appears to have a purple cast to it...](./images/m51_RBonly.png "M51, with only Red and Blue filter images.")
 
 
-Other reasons you may not be satisfied with a simple pure RGB cube: 
+Other reasons you may not be satisfied with a simple pure RGB cube:
 
 - Maybe you want to make it 'pretty' or eye-catching for a press release
 ![Something a little different.](./images/kepler_POT.png "Kepler's SNR with new coloration.")
@@ -200,10 +200,3 @@ Other reasons you may not be satisfied with a simple pure RGB cube:
 - What you see on the screen will not likely appear the same way on printed paper -- need to convert RGB to CMYK for that.
 - Currently all input files must have same projection/pixel grid in the GUI -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that, and multicolorfits also includes some command line functions for reprojection. See the WLM tutorial for example usage of the functions for this that are included with multicolorfits.
 - This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files. (UN-checking the Auto-Refresh button at the top of the GUI will help.)  This could certainly be improved in future versions.
-
-
-
-
-
-
-

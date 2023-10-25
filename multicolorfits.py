@@ -2,7 +2,7 @@
 ### v2.1
 ### written by Phil Cigan
 __author__ = "Phil Cigan"
-__version__ = "2.1.1"
+__version__ = "2.1.2"
 
 
 #Some resources for now: 
@@ -42,8 +42,12 @@ try:
     try: from traitsui.basic_editor_factory import BasicEditorFactory
     except: from traitsui.qt4.basic_editor_factory import BasicEditorFactory
     #These two for changing the cursor
-    from PyQt.QtCore import Qt 
-    from PyQt.QtWidgets import QApplication, QMenu 
+    try: 
+        from PyQt.QtCore import Qt 
+        from PyQt.QtWidgets import QApplication, QMenu 
+    except: 
+        from PyQt6.QtCore import Qt 
+        from PyQt6.QtWidgets import QApplication, QMenu 
 except:
     try:
         ### python3 and PyQt5
@@ -70,6 +74,11 @@ except:
         from PyQt4.QtCore import Qt
         from PyQt4.QtGui import QApplication, QMenu
         # Cursor shapes: http://ftp.ics.uci.edu/pub/centos0/ics-custom-build/BUILD/PyQt-x11-gpl-4.7.2/doc/html/qcursor.html
+#try: 
+#    CrossCursor = Qt.CrossCursor
+#except: 
+#    #New development necessary with PyQt6/python 3.10
+#    CrossCursor = Qt.CursorShape.CrossCursor
 
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
@@ -1045,7 +1054,7 @@ def greyRGBize_image(datin,rescalefn='linear',scaletype='abs',min_max=[None,None
         ax1=fig0.add_subplot(121); 
         plt.imshow(datin,interpolation='nearest',origin='lower',cmap='gist_gray'); 
         plt.title('Input Image')
-        ax2=fig0.add_subplot(122); 
+        ax2=fig0.add_subplot(122, sharex=ax1, sharey=ax1); 
         plt.imshow(dat_greyRGB**(1./gamma),interpolation='nearest',origin='lower'); 
         plt.title('Scaled Image')
         plt.show(); #plt.clf(); plt.close('all')
@@ -1743,7 +1752,9 @@ class ControlPanel(HasTraits):
         QApplication.restoreOverrideCursor()
         self.status_string_left = ''
 
-    def on_cursor_enter(self, event): QApplication.setOverrideCursor(Qt.CrossCursor)
+    def on_cursor_enter(self, event): 
+        try: QApplication.setOverrideCursor(Qt.CrossCursor)
+        except: pass
 
 
 ##### The main viewer #####
@@ -1752,6 +1763,7 @@ class multicolorfits_viewer(HasTraits):
     """The main window. (Right-side panel.)
     Has instructions for creating and destroying the app.
     """
+    app = QApplication([]) #Instantiate this here to avoid "Must construct a QGuiApplication first." warnings
     
     panel1 = Instance(ControlPanel)
     panel2 = Instance(ControlPanel)
@@ -2080,7 +2092,9 @@ class multicolorfits_viewer(HasTraits):
         QApplication.restoreOverrideCursor()
         self.status_string_left = ''
 
-    def on_cursor_enter(self, event): QApplication.setOverrideCursor(Qt.CrossCursor)
+    def on_cursor_enter(self, event): 
+        try: QApplication.setOverrideCursor(Qt.CrossCursor)
+        except: pass
     
     def _save_the_image_fired(self):
         dlg = FileDialog(action='save as')
