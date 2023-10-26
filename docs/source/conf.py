@@ -39,7 +39,7 @@ author = 'Phil Cigan'
 # The short X.Y version
 version = '2.1'
 # The full version, including alpha/beta/rc tags
-release = '2.1.1'
+release = '2.1.2'
 
 
 # -- General configuration ---------------------------------------------------
@@ -60,7 +60,8 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
-    'recommonmark',
+    #'recommonmark', #now deprecated.  Use myst_parser instead.
+    'myst_parser',
     'sphinx.ext.napoleon',
     #'sphinx_search.extension',
 ]

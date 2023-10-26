@@ -7,3 +7,5 @@ pyface==7.4.4
 traits
 traitsui
 scikit-image
+myst_parser
+sphinx_rtd_theme
