@@ -104,15 +104,16 @@ from skimage import filters
 
 import colorsys
 
-#For manual plots
-import matplotlib.patheffects as PathEffects
-from matplotlib import patches
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredEllipse, AnchoredSizeBar
-try: from mpl_toolkits.axes_grid1.anchored_artists import AnchoredText  #Matplotlib <2.1
-except: from matplotlib.offsetbox import AnchoredText                   #Matplotlib >=2.1
-from matplotlib.offsetbox import AnchoredText
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredDrawingArea
+##For manual plots -- remove these here because not used explicitly in this package anymore
+#import matplotlib.patheffects as PathEffects
+#from matplotlib import patches
+#from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+#from mpl_toolkits.axes_grid1.anchored_artists import AnchoredEllipse, AnchoredSizeBar
+#try: from mpl_toolkits.axes_grid1.anchored_artists import AnchoredText  #Matplotlib <2.1
+#except: from matplotlib.offsetbox import AnchoredText                   #Matplotlib >=2.1
+#from matplotlib.offsetbox import AnchoredText
+#from mpl_toolkits.axes_grid1.anchored_artists import AnchoredDrawingArea
+
 from astropy.coordinates import SkyCoord
 
 try: import reproject
@@ -701,7 +702,7 @@ def reproject2D(mapin,hdrfrom,hdrto,scale=False,method='interp',interpdict={'ord
     if returnfootprint==True and method!='kapteyn': return map_reproj,map_footprint
     else: return map_reproj
 
-def reproject3D(mapin,hdrfrom,hdrto,scale=False,method='kapteyn',parallel=True,returnfootprint=False, print_progress=False):
+def reproject3D(mapin,hdrfrom,hdrto,scale=False,method='interp',parallel=True,returnfootprint=False, print_progress=False):
     """
     Function that reprojects a 3D cube from the parameters in one header to the parameters in another header.
     
