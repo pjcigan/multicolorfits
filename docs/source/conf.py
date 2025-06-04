@@ -26,20 +26,50 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return MagicMock()
 
-MOCK_MODULES = ['pyqt4','pyqt5','PyQt4','PyQt4.QtCore','PyQt4.QtGui','PyQt5','PyQt5.QtGui','PyQt5.QtWidgets','PyQt5.QtCore',  'PyQt','PyQt.QtCore','PyQt.QtWidgets', 'pyface.qt','pyface.qt.QtCore','pyface.qt.QtGui', 'traitsui.qt4.editor', 'matplotlib.backends.backend_qtagg','matplotlib.backends.backend_qt5agg','matplotlib.backends.backend_qt4agg' , 'setuptools', ]
+MOCK_MODULES = ['pyqt4','pyqt5','PyQt4','PyQt4.QtCore','PyQt4.QtGui','PyQt5','PyQt5.QtGui','PyQt5.QtWidgets','PyQt5.QtCore',  'PyQt','PyQt.QtCore','PyQt.QtWidgets', 'PyQt6', 'pyface.qt','pyface.qt.QtCore','pyface.qt.QtGui', 'traitsui.qt4.editor', 'matplotlib.backends.backend_qtagg','matplotlib.backends.backend_qt5agg','matplotlib.backends.backend_qt4agg' , 'setuptools', 'traits', 'traitsui', 'pyface', 'pyface.api', 'traits.api', 'traitsui.api', 'traitsui.basic_editor_factory', 'traitsui.qt4.basic_editor_factory', 'traitsui.ui_info', 'traitsui.file_dialog', 'traitsui.qt4.mpl_editor', 'traitsui.qt.mpl_editor', 'traitsui.mpl_editor', 'MPLFigureEditor', 'traitsui.editors', 'traitsui.qt4.editors', 'traitsui.qt.editors',]
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
+for module_name in MOCK_MODULES:
+    if module_name in sys.modules:
+        sys.modules[module_name].side_effect = None
+
+sys.modules['MPLFigureEditor'].__call__ = lambda *args, **kwargs: MagicMock()
+
+# Fix the base classes that MPLFigureEditor inherits from
+class SafeBasicEditorFactory:
+    """Proper class for BasicEditorFactory inheritance"""
+    def __init__(self, *args, **kwargs):
+        self.klass = None  # MPLFigureEditor sets this
+    def __getattr__(self, name):
+        return MagicMock()
+
+class SafeEditor:
+    """Proper class for Editor inheritance"""  
+    def __init__(self, *args, **kwargs):
+        pass
+    def __getattr__(self, name):
+        return MagicMock()
+
+# Override with CLASSES (not functions)
+for module_name in ['traitsui', 'traitsui.api', 'traitsui.basic_editor_factory', 'traitsui.qt4.basic_editor_factory', 'traitsui.editors']:
+    if module_name in sys.modules:
+        setattr(sys.modules[module_name], 'BasicEditorFactory', SafeBasicEditorFactory)
+        setattr(sys.modules[module_name], 'Editor', SafeEditor)
+
+# Fix matplotlib backend to prevent Qt4Agg error
+import matplotlib
+matplotlib.use('Agg')
 
 # -- Project information -----------------------------------------------------
 
 project = 'multicolorfits'
-copyright = '2023, Phil Cigan'
+copyright = '2025, Phil Cigan'
 author = 'Phil Cigan'
 
 # The short X.Y version
 version = '2.1'
 # The full version, including alpha/beta/rc tags
-release = '2.1.2'
+release = '2.1.3'
 
 
 # -- General configuration ---------------------------------------------------

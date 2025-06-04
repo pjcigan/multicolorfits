@@ -1,6 +1,6 @@
 multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
 
-version 2.1.2
+version 2.1.3
 
 API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
 
@@ -9,6 +9,7 @@ API documentation at [https://multicolorfits.readthedocs.io](https://multicolorf
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3256060.svg)](https://doi.org/10.5281/zenodo.3256060)
 [![PyPI version](https://badge.fury.io/py/multicolorfits.svg)](https://badge.fury.io/py/multicolorfits)
 [![Downloads](https://pepy.tech/badge/multicolorfits)](https://pepy.tech/project/multicolorfits)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%F0%9F%A7%AA-blue?logo=github&style=flat)](https://github.com/sponsors/pjcigan)
 
 
 Sharing/Customization: Please, play around!  (MIT License)
@@ -38,7 +39,7 @@ If you find this useful for your work, giving me (Phil Cigan) a nod in your ackn
 
 * reproject and/or kapteyn, for the optional reprojection convenience functions (montagepy suppport may be added in the future)
 
-- Tested in python 3.10, 3.7 (and python 3.4 & 2.7 with PyQt4)
+- Tested in python 3.10, 3.7 (and python 3.4 & 2.7 with PyQt4).  There are some issues with the GUI in python 3.11 (likely TraitsUI compatibility with PyQt6) - work there is ongoing.
 
 
 # Installation

@@ -1,5 +1,11 @@
 # 2.1
 
+2025-06-02
+
+* Removed orphaned matplotlib imports no longer used, some of which were preventing mcf to successfully load (AnchoredEllipse is now deprecated)
+* Made some improvements to speed in colorize_image: treating hex color colorization separately, and also vectorizing hsv conversion
+* Made improvements to behind-the-scenes testing of sphinx documentation building
+
 2023-09-27
 
 * Updated PyQt imports to use PyQt6 by default, to work with py 3.10 and M processor Macs.  PyQt5 is still there as a backup.  PyQt4 should still work for Python 3.4 and lower at the moment, but this may be phased out in future releases.
