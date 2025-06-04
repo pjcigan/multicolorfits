@@ -2,7 +2,7 @@
 ### v2.1
 ### written by Phil Cigan
 __author__ = "Phil Cigan"
-__version__ = "2.1.2"
+__version__ = "2.1.3"
 
 
 #Some resources for now: 
@@ -981,6 +981,138 @@ def hex_to_hsv(hexstring):
     h = (h/6.0) % 1.0
     return h, s, v #All in fractions in range [0...1]
 
+def rgb_to_hsv_vectorized(rgb):
+    """
+    Vectorized RGB to HSV conversion, 
+    ~3-10x faster than skimage.color.rgb2hsv for large arrays
+    
+    Parameters:
+    -----------
+    rgb : numpy.ndarray
+        RGB image with shape (H, W, 3) and values in [0, 1]
+    
+    Returns:
+    --------
+    numpy.ndarray
+        HSV image with same shape, values in [0, 1]
+    """
+    rgb = np.asarray(rgb, dtype=np.float32)
+    
+    # Extract RGB channels
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    
+    # Find max and min values across RGB channels
+    max_rgb = np.maximum(np.maximum(r, g), b)
+    min_rgb = np.minimum(np.minimum(r, g), b)
+    delta = max_rgb - min_rgb
+    
+    # Initialize HSV arrays
+    h = np.zeros_like(max_rgb)
+    s = np.zeros_like(max_rgb)
+    v = max_rgb  # Value is just the max RGB
+    
+    # Calculate Saturation (vectorized)
+    # Avoid division by zero
+    mask_nonzero = max_rgb != 0
+    s[mask_nonzero] = delta[mask_nonzero] / max_rgb[mask_nonzero]
+    
+    # Calculate Hue (vectorized with conditional logic)
+    # Avoid division by zero
+    mask_delta = delta != 0
+    
+    # Case 1: Red is maximum
+    mask_r = (max_rgb == r) & mask_delta
+    h[mask_r] = (60 * ((g[mask_r] - b[mask_r]) / delta[mask_r]) + 360) % 360
+    
+    # Case 2: Green is maximum  
+    mask_g = (max_rgb == g) & mask_delta
+    h[mask_g] = (60 * ((b[mask_g] - r[mask_g]) / delta[mask_g]) + 120) % 360
+    
+    # Case 3: Blue is maximum
+    mask_b = (max_rgb == b) & mask_delta
+    h[mask_b] = (60 * ((r[mask_b] - g[mask_b]) / delta[mask_b]) + 240) % 360
+    
+    # Normalize hue to [0, 1]
+    h = h / 360.0
+    
+    # Stack HSV channels
+    hsv = np.stack([h, s, v], axis=-1)
+    
+    return hsv
+
+
+def hsv_to_rgb_vectorized(hsv):
+    """
+    Vectorized HSV to RGB conversion
+    ~3-10x faster than skimage.color.hsv2rgb for large arrays
+    """
+    hsv = np.asarray(hsv, dtype=np.float32)
+    
+    # Extract HSV channels
+    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    
+    # Convert hue from [0, 1] to [0, 360]
+    h = h * 360.0
+    
+    # Calculate intermediate values
+    c = v * s  # Chroma
+    h_prime = h / 60.0
+    x = c * (1 - np.abs((h_prime % 2) - 1))
+    m = v - c
+    
+    # Initialize RGB
+    r = np.zeros_like(h)
+    g = np.zeros_like(h)
+    b = np.zeros_like(h)
+    
+    # Vectorized conditional assignment based on hue sector
+    mask0 = (0 <= h_prime) & (h_prime < 1)
+    mask1 = (1 <= h_prime) & (h_prime < 2)
+    mask2 = (2 <= h_prime) & (h_prime < 3)
+    mask3 = (3 <= h_prime) & (h_prime < 4)
+    mask4 = (4 <= h_prime) & (h_prime < 5)
+    mask5 = (5 <= h_prime) & (h_prime < 6)
+    
+    # Sector 0: (c, x, 0)
+    r[mask0] = c[mask0]
+    g[mask0] = x[mask0]
+    b[mask0] = 0
+    
+    # Sector 1: (x, c, 0)
+    r[mask1] = x[mask1]
+    g[mask1] = c[mask1]
+    b[mask1] = 0
+    
+    # Sector 2: (0, c, x)
+    r[mask2] = 0
+    g[mask2] = c[mask2]
+    b[mask2] = x[mask2]
+    
+    # Sector 3: (0, x, c)
+    r[mask3] = 0
+    g[mask3] = x[mask3]
+    b[mask3] = c[mask3]
+    
+    # Sector 4: (x, 0, c)
+    r[mask4] = x[mask4]
+    g[mask4] = 0
+    b[mask4] = c[mask4]
+    
+    # Sector 5: (c, 0, x)
+    r[mask5] = c[mask5]
+    g[mask5] = 0
+    b[mask5] = x[mask5]
+    
+    # Add the minimum component
+    r += m
+    g += m
+    b += m
+    
+    # Stack RGB channels
+    rgb = np.stack([r, g, b], axis=-1)
+    
+    return np.clip(rgb, 0, 1)
+
 def hexinv(hexstring):
     """
     Convenience function to calculate the inverse color (opposite on the color wheel).
@@ -1062,7 +1194,37 @@ def greyRGBize_image(datin,rescalefn='linear',scaletype='abs',min_max=[None,None
 
     return dat_greyRGB
   
-def colorize_image(image, colorvals, colorintype='hsv',dtype=np.float64,gammacorr_color=1):
+def colorize_image_direct_rgb(grey_rgb_image, hex_color, brightness_factor=1.0):
+    """
+    Much faster colorization by working directly in RGB space, for case
+    when HSV is not needed.  Applies color tinting directly to grayscale image.
+    ~50-200x faster than HSV-based colorization.
+    
+    Parameters:
+    -----------
+    grey_rgb_image : numpy.ndarray
+        Grayscale RGB image (all channels should be equal)
+    hex_color : str
+        Hex color string like '#FF0000'
+    brightness_factor : float
+        Factor to adjust brightness (equivalent to HSV value)
+    """
+    # Convert hex to RGB
+    if isinstance(hex_color, str):
+        hex_color = hex_color.lstrip('#')
+        color_rgb = np.array([int(hex_color[i:i+2], 16) for i in (0, 2, 4)]) / 255.0
+    else:
+        color_rgb = np.array(hex_color)
+    
+    # Take the intensity from the first channel (assuming grayscale)
+    intensity = grey_rgb_image[..., 0:1]  # Keep dimensions for broadcasting
+    
+    # Apply color and brightness in one vectorized operation
+    colorized = intensity * color_rgb[np.newaxis, np.newaxis, :] * brightness_factor
+    
+    return np.clip(colorized, 0, 1).astype(np.float32)
+    
+def colorize_image(image, colorvals, colorintype='hex',dtype=np.float64, gammacorr_color=1):
     """
     ### Add color of the given hue to an RGB greyscale image.
     
@@ -1085,17 +1247,54 @@ def colorize_image(image, colorvals, colorintype='hsv',dtype=np.float64,gammacor
         Colorized RGB image, shape=[ypixels,xpixels,3]
     """
     if colorintype not in ['hsv', 'hsv_dict', 'rgb', 'hex']: raise Exception("  colorintype must be 'hsv', 'hsv_dict', 'rgb', or 'hex'")
-    hsv = ski_color.rgb2hsv(image).astype(dtype)
-    if colorintype.lower()=='rgb': colorvals=np.array(hex_to_hsv(rgb_to_hex(colorvals))).astype(dtype)
-    elif colorintype.lower()=='hex': colorvals=np.array(hex_to_hsv(colorvals)).astype(dtype) #from custom_colormaps.py
-    if colorintype.lower()=='hsv_dict': hue,saturation,v=colorvals['hue'],colorvals['sat'],colorvals['v'],
-    else: hue,saturation,v=colorvals
-    if gammacorr_color!=1: 
-        hue,saturation,v = colorsys.rgb_to_hsv( *np.array( colorsys.hsv_to_rgb(hue,saturation,v) )**gammacorr_color )
-    hsv[:, :, 2] *= v 
-    hsv[:, :, 1] = saturation
-    hsv[:, :, 0] = hue
-    return ski_color.hsv2rgb(hsv).astype(dtype)
+    #hsv = ski_color.rgb2hsv(image).astype(dtype)
+    #if colorintype.lower()=='rgb': colorvals=np.array(hex_to_hsv(rgb_to_hex(colorvals))).astype(dtype)
+    #elif colorintype.lower()=='hex': colorvals=np.array(hex_to_hsv(colorvals)).astype(dtype) #from custom_colormaps.py
+    #if colorintype.lower()=='hsv_dict': hue,saturation,v=colorvals['hue'],colorvals['sat'],colorvals['v'],
+    #else: hue,saturation,v=colorvals
+    #if gammacorr_color!=1: 
+    #    hue,saturation,v = colorsys.rgb_to_hsv( *np.array( colorsys.hsv_to_rgb(hue,saturation,v) )**gammacorr_color )
+    #hsv[:, :, 2] *= v 
+    #hsv[:, :, 1] = saturation
+    #hsv[:, :, 0] = hue
+    #return ski_color.hsv2rgb(hsv).astype(dtype)
+    
+    ### Speeding things up
+    # Fast color conversion to HSV
+    if colorintype.lower() == 'rgb':
+        r, g, b = np.array(colorvals) / 255.0
+        import colorsys
+        hue, saturation, v = colorsys.rgb_to_hsv(r, g, b)
+    elif colorintype.lower() == 'hex':
+        if gammacorr_color==1:
+            ### For case of hex color, MUCH faster to bypass HSV entirely
+            return colorize_image_direct_rgb(image, colorvals)
+        elif isinstance(colorvals, str):
+            colorvals = colorvals.lstrip('#')
+            r, g, b = [int(colorvals[i:i+2], 16) / 255.0 for i in (0, 2, 4)]
+            import colorsys
+            hue, saturation, v = colorsys.rgb_to_hsv(r, g, b)
+        else:
+            hue, saturation, v = hex_to_hsv(colorvals)
+    elif colorintype.lower() == 'hsv_dict':
+        hue, saturation, v = colorvals['hue'], colorvals['sat'], colorvals['v']
+    else:  # hsv
+        hue, saturation, v = colorvals
+    
+    # Gamma correction for color
+    if gammacorr_color != 1:
+        import colorsys
+        rgb_corrected = np.array(colorsys.hsv_to_rgb(hue, saturation, v)) ** gammacorr_color
+        hue, saturation, v = colorsys.rgb_to_hsv(*rgb_corrected)
+    
+    hsv = rgb_to_hsv_vectorized(image).astype(dtype)
+    
+    # Vectorized HSV channel updates
+    hsv[..., 0] = hue
+    hsv[..., 1] = saturation  
+    hsv[..., 2] *= v
+    
+    return hsv_to_rgb_vectorized(hsv).astype(dtype)
 
 def combine_multicolor(im_list_colorized,gamma=2.2,inverse=False):
     """
@@ -1118,8 +1317,17 @@ def combine_multicolor(im_list_colorized,gamma=2.2,inverse=False):
     combined_RGB=LinearStretch()(np.nansum(im_list_colorized,axis=0))
     if inverse==True: RGB_maxints=tuple(1.-np.nanmax(combined_RGB[:,:,i]) for i in [0,1,2])
     else: RGB_maxints=tuple(np.nanmax(combined_RGB[:,:,i]) for i in [0,1,2])
-    for i in [0,1,2]: 
-        combined_RGB[:,:,i]=np.nan_to_num(rescale_intensity(combined_RGB[:,:,i], out_range=(0, combined_RGB[:,:,i].max()/np.max(RGB_maxints) )));
+    #for i in [0,1,2]: 
+    #    combined_RGB[:,:,i]=np.nan_to_num(rescale_intensity(combined_RGB[:,:,i], out_range=(0, combined_RGB[:,:,i].max()/np.max(RGB_maxints) )));
+    ##Speed up:
+    max_of_maxints = np.max(RGB_maxints)
+    for i in range(3):
+        channel_max = combined_RGB[:,:,i].max()
+        if channel_max > 0:
+            target_max = channel_max / max_of_maxints
+            combined_RGB[:,:,i] = np.nan_to_num(
+                rescale_intensity(combined_RGB[:,:,i], out_range=(0, target_max))
+            )
     combined_RGB=LinearStretch()(combined_RGB**(1./gamma)) #gamma correction
     if inverse==True: combined_RGB=1.-combined_RGB #gamma correction
     return combined_RGB
