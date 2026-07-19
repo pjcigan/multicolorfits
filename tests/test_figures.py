@@ -151,14 +151,16 @@ class TestAxisLabelsAndTicks:
         loaded_session.compose.ylabel = 'Declination'
         fig = make_combined_figure(loaded_session)
         ax = fig.axes[0]
-        assert ax.get_xlabel() == 'Right Ascension'
-        assert ax.get_ylabel() == 'Declination'
+        # Prefer WCSAxes coord helpers: ax.get_xlabel/ylabel follow spine
+        # placement and can disagree across Astropy versions (e.g. 7.x).
+        assert ax.coords[0].get_axislabel() == 'Right Ascension'
+        assert ax.coords[1].get_axislabel() == 'Declination'
 
     def test_auto_axis_labels_from_ctype(self, loaded_session):
         fig = make_combined_figure(loaded_session)
         ax = fig.axes[0]
-        assert ax.get_xlabel() == 'RA'
-        assert ax.get_ylabel() == 'DEC'
+        assert ax.coords[0].get_axislabel() == 'RA'
+        assert ax.coords[1].get_axislabel() == 'DEC'
 
     def test_tick_direction_out(self, loaded_session):
         from matplotlib.backends.backend_agg import FigureCanvasAgg
