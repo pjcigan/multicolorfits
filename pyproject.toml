@@ -52,6 +52,8 @@ all = [
 test = [
     "pytest",
     "multicolorfits[web]",
+    # Starlette TestClient (used by fastapi.testclient) requires httpx2.
+    "httpx2",
 ]
 docs = [
     "sphinx>=6",

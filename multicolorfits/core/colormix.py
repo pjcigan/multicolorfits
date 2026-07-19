@@ -1,4 +1,4 @@
-"""
+r"""
 Color-space compositing beyond simple RGB addition.
 
 The classic multicolorfits pipeline combines colorized layers by summing RGB
