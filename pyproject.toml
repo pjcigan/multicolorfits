@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multicolorfits"
+version = "3.0.0"
+description = "Colorize and combine multiple FITS images for making visually aesthetic scientific plots"
+readme = "README.md"
+license = { text = "BSD-3-Clause" }
+authors = [{ name = "Phil Cigan" }]
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = [
+    "numpy",
+    "astropy",
+    "scipy",
+    "matplotlib",
+    "scikit-image",
+]
+
+[project.optional-dependencies]
+web = [
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+]
+qt = [
+    "PySide6",
+]
+reproject = [
+    "reproject",
+]
+# Optional plotting overlays (compass, beam, scale bar) via skyplothelper.
+overlays = [
+    "skyplothelper",
+]
+pysymlog = [
+    "pysymlog",
+]
+all = [
+    "multicolorfits[web,qt,reproject,overlays,pysymlog]",
+]
+test = [
+    "pytest",
+    "multicolorfits[web]",
+]
+docs = [
+    "sphinx>=6",
+    "myst-parser",
+    "pydata-sphinx-theme",
+    "sphinx-design",
+    "sphinx-copybutton",
+    "nbsphinx>=0.9.8",
+    "ipython",
+    "jupytext",
+]
+
+[project.scripts]
+mcf-web = "multicolorfits.gui_web.launcher:main"
+mcf-qt = "multicolorfits.qt_gui.app:main"
+
+[project.urls]
+Homepage = "https://github.com/pjcigan/multicolorfits"
+Documentation = "https://multicolorfits.readthedocs.io"
+
+[tool.setuptools.packages.find]
+include = ["multicolorfits*"]
+
+[tool.setuptools.package-data]
+"multicolorfits.gui_web" = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

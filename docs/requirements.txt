@@ -1,0 +1,13 @@
+sphinx>=6
+myst-parser
+pydata-sphinx-theme
+sphinx-design
+sphinx-copybutton
+nbsphinx>=0.9.8
+ipython
+jupytext
+numpy
+astropy
+scipy
+matplotlib
+scikit-image

@@ -1,0 +1,319 @@
+# multicolorfits
+
+> Colorize and combine any number of FITS image layers into publication-quality multicolor astronomy figures (Python, v3.0.0). In a session, `import multicolorfits as mcf; mcf.overview()` prints the orientation below and `mcf.recipes('<keyword>')` prints these recipes.
+
+## The colorize-then-combine model
+
+multicolorfits is LAYER-FIRST.  You build one *colorized layer* per image
+band, then add the layers together into a single multicolor image.  Every
+layer goes through the same three steps:
+
+    import multicolorfits as mcf
+    grey = mcf.to_grey_rgb(data, rescalefn='asinh', min_max=[0, 5])  # 1. stretch → grey RGB
+    layer = mcf.colorize_image(grey, '#C11B17', colorintype='hex')   # 2. tint it a color
+    rgb = mcf.combine_multicolor([layer_a, layer_b, ...], gamma=2.2)  # 3. add layers up
+
+Step 1 (`to_grey_rgb`) maps raw intensities into a [0,1] greyscale *RGB cube*
+(shape ``(ny, nx, 3)``).  Step 2 (`colorize_image`) tints that grey cube a hue.
+Step 3 (`combine_multicolor`) sums the tinted layers and renormalizes.
+
+For interactive / stateful work (and the GUIs), use `McfSession`: it holds N
+panels (one per band) plus compose settings, and `render_combined()` runs the
+same pipeline for you.  `combine_layers` / `combine_from_files` are one-call
+wrappers over the whole pipeline for arrays / FITS files.
+
+## Conventions (the common first-attempt mistakes)
+
+- colorize_image() takes a GREY RGB CUBE (shape (ny,nx,3) from to_grey_rgb()), NOT a raw 2D data array. Passing 2D data raises a TypeError that tells you to call to_grey_rgb() first.
+- combine_multicolor() takes a LIST of colorized layers, not a single array and not a list of raw 2D arrays. Each element is an (ny,nx,3) layer from colorize_image().
+- colorintype= selects how a color is given: 'hex' ('#FF0000'), 'rgb' ([255,0,0], 0-255), or 'hsv' ([h,s,v], each 0-1). The default is 'hex'.
+- gamma is applied consistently: use the SAME gamma (default 2.2) in to_grey_rgb / colorize / combine so layers stack predictably.
+- Intensity limits: to_grey_rgb(scaletype='abs', min_max=[lo,hi]) uses data units; scaletype='perc', min_max=[1,99.5] uses percentiles. rescalefn is the stretch ('linear','sqrt','asinh','log',...).
+- Backgrounds: classic combine_multicolor makes emission on BLACK. For a white/paper background use inverse=True (hue-complement look) OR combine_multicolor_alpha(..., background='white') (keeps true hues). Do NOT expect a transparent/white compose to reproduce the black-background colors exactly — the alpha compositor shifts/brightens them.
+- FITS arrays are origin='lower' (row 0 at the bottom). Display with plt.imshow(rgb, origin='lower'). save_transparent_cutout() writes PNGs flipped so ordinary image viewers show the same sky orientation.
+- Perceptual alternatives to the additive RGB combine: combine_multicolor_colorspace(layers, colorspace='lab', blend='screen') keeps hues from washing to white. 'lab' is well-tested; 'hsv'/'hsl' are experimental.
+- Optional features gate on extras: reproject (align/reproject), skyplothelper (compass/beam/scale-bar overlays), PySide6 (mcf.gui_qt), fastapi+uvicorn (mcf.gui). Core pipeline needs only numpy/astropy/scipy/matplotlib/scikit-image.
+- Colors that survive color-blindness / greyscale: mcf.suggest_colors(n) and mcf.list_palettes() give vetted palettes; McfSession.colorblind_report() flags clashes.
+
+## Recipes (runnable; your data as named placeholders)
+
+### basics
+
+**Colorize and combine two bands (the core pipeline)**
+
+```python
+import multicolorfits as mcf
+
+# data_r, data_b: 2D numpy arrays (your two bands, same shape)
+grey_r = mcf.to_grey_rgb(data_r, rescalefn='asinh', scaletype='perc', min_max=[1, 99.5])
+grey_b = mcf.to_grey_rgb(data_b, rescalefn='asinh', scaletype='perc', min_max=[1, 99.5])
+layer_r = mcf.colorize_image(grey_r, '#E4002B', colorintype='hex')   # red
+layer_b = mcf.colorize_image(grey_b, '#0088FF', colorintype='hex')   # blue
+rgb = mcf.combine_multicolor([layer_r, layer_b], gamma=2.2)          # (ny,nx,3) in [0,1]
+```
+*Adjust:* Add more bands by appending more colorized layers to the list. colorintype='hex'|'rgb'|'hsv'.
+
+**One-call combine from a list of arrays**
+
+```python
+import multicolorfits as mcf
+
+# combine_layers runs stretch + colorize + combine for you.
+rgb = mcf.combine_layers(
+    [data_r, data_g, data_b],
+    colors=['#E4002B', '#33CC33', '#0088FF'],
+    stretches=['asinh', 'asinh', 'asinh'],
+    gamma=2.2)
+```
+*Adjust:* Pass min_maxes=[[vmin,vmax], ...] for absolute data-unit limits per layer (not percentiles). colorspace='lab' switches to perceptual compositing; inverse=True gives a white-background look.
+
+**Combine straight from FITS files (optionally aligned)**
+
+```python
+import multicolorfits as mcf
+
+# fits_r, fits_g, fits_b: paths to FITS files.
+rgb = mcf.combine_from_files(
+    [fits_r, fits_g, fits_b],
+    colors=['#E4002B', '#33CC33', '#0088FF'],
+    gamma=2.2)
+```
+*Adjust:* Reproject onto a common grid with align_reference=0 (index) or align_optimal=True (needs the 'reproject' extra).
+
+### scaling
+
+**Choose an intensity stretch and limits**
+
+```python
+import multicolorfits as mcf
+
+# Absolute data-unit limits:
+grey = mcf.to_grey_rgb(data, rescalefn='log', scaletype='abs', min_max=[0.0, 12.0], gamma=2.2)
+# Percentile limits (robust to outliers):
+grey = mcf.to_grey_rgb(data, rescalefn='sqrt', scaletype='perc', min_max=[1, 99.5])
+# zscale (IRAF-style) limits for a raw array:
+vmin, vmax = mcf.zscale_limits(data)
+```
+*Adjust:* rescalefn: 'linear','sqrt','squared','log','asinh','sinh','power'. scaletype: 'abs' (data units) or 'perc' (percentiles).
+
+### colorspaces
+
+**Perceptual (Lab) compositing instead of additive RGB**
+
+```python
+import multicolorfits as mcf
+
+# layers: list of colorized (ny,nx,3) layers from colorize_image()
+rgb = mcf.combine_multicolor_colorspace(
+    layers, colorspace='lab', blend='screen', gamma=2.2)
+```
+*Adjust:* colorspace='lab' is well-tested and keeps hues from washing out; blend='screen'|'max'|'sum'. 'hsv'/'hsl' spaces are experimental.
+
+### backgrounds
+
+**White / paper background (keep true hues)**
+
+```python
+import multicolorfits as mcf
+
+# Composite the layers over white without the legacy hue-flipping inverse:
+rgb = mcf.combine_multicolor_alpha(layers, background='white', mode='rgb', gamma=2.2)
+# Or flatten an already-combined black-background image onto a color:
+rgb_on_slide = mcf.composite_over_background(combined, background='#12243A')
+```
+*Adjust:* mode='ryb' mixes like paint (yellow+blue→green); mode='cmyk' like print inks; background=None returns transparent RGBA.
+
+**Classic inverse (white background, hue-complement look)**
+
+```python
+import multicolorfits as mcf
+
+rgb_inverse = mcf.combine_multicolor(layers, gamma=2.2, inverse=True)
+```
+*Adjust:* inverse=True is the classic look (also flips hues). For true-hue white backgrounds prefer combine_multicolor_alpha(background='white').
+
+### session
+
+**Stateful editing with McfSession**
+
+```python
+import multicolorfits as mcf
+
+s = mcf.McfSession(n_panels=3)
+s.load_files([fits_r, fits_g, fits_b],
+             colors=['#E4002B', '#33CC33', '#0088FF'],
+             labels=['R', 'G', 'B'])
+for p in s.panels:
+    p.stretch = 'asinh'
+    p.set_percentiles(1, 99.5)
+s.compose.combine_mode = 'rgb'      # or 'lab'
+s.compose.gamma = 2.2
+rgb = s.render_combined()
+```
+*Adjust:* set_data(array, header) instead of load_files for in-memory arrays. s.compose.combine_background = 'black'|'white'.
+
+**Save and reload a session (JSON)**
+
+```python
+import multicolorfits as mcf
+
+s.save_state('my_session.json')          # portable; references FITS by path
+s2 = mcf.McfSession()
+s2.load_state('my_session.json')
+rgb = s2.render_combined()
+```
+*Adjust:* s.export_script() emits a standalone Python script that recreates the current image with the plain pipeline API.
+
+### cutouts
+
+**Transparent-sky cutout / stamp (PNG)**
+
+```python
+import multicolorfits as mcf
+
+# combined: an (ny,nx,3) RGB image on a black background.
+rgba = mcf.make_transparent_cutout(
+    combined, crop='auto', pad=0.05,
+    alpha_smooth=3, alpha_lo=45, alpha_hi=82, alpha_gamma=0.7)
+mcf.save_transparent_cutout(rgba, 'stamp.png')   # written right-side-up for viewers
+```
+*Adjust:* Higher alpha_lo/alpha_hi clear more faint outer junk; alpha_smooth blurs the matte so it follows whole structures. From a session use s.export_transparent_cutout(size=512, savepath='stamp.png').
+
+**Preview a cutout over several backgrounds**
+
+```python
+import multicolorfits as mcf
+import matplotlib.pyplot as plt
+
+fig = mcf.preview_cutout_on_backgrounds(rgba)   # checker / dark / light
+fig.savefig('cutout_preview.png', dpi=110)
+```
+*Adjust:* Good for checking the alpha matte before you drop a stamp on slides.
+
+### wcs
+
+**Crop a FITS image by pixel bounds**
+
+```python
+import multicolorfits as mcf
+
+cropped_data, cropped_header = mcf.crop_image(
+    data, header, xbounds=[100, 400], ybounds=[120, 420])
+```
+*Adjust:* crop_image_sky(data, header, ra_bounds, dec_bounds) crops in sky coordinates; crop_cube / crop_cube_sky handle 3D.
+
+**Align / reproject bands onto a common grid**
+
+```python
+import multicolorfits as mcf
+
+# Needs the 'reproject' extra:  pip install multicolorfits[reproject]
+# images is a list of (array, header) pairs; all are reprojected onto the
+# reference layer's grid.
+aligned = mcf.align_stack(
+    [(data_r, header), (data_g, header), (data_b, header)],
+    reference=0)
+data_list = [d for d, hdr in aligned]
+```
+*Adjust:* reproject_image(data, header_from, header_to) reprojects one array. optimal=True finds a common grid covering all inputs.
+
+### figures
+
+**Publication figure with WCS axes, legend, swatch**
+
+```python
+import multicolorfits as mcf
+
+s.compose.show_legend = True
+s.compose.show_combo_swatch = True
+fig = mcf.make_combined_figure(s, figsize=(7, 7))
+fig.savefig('figure.png', dpi=150, facecolor=fig.get_facecolor())
+```
+*Adjust:* make_component_mosaic(s) adds a strip of the individual colorized bands beside the combined hero image.
+
+**Bare, image-only figure (press-release style)**
+
+```python
+import multicolorfits as mcf
+
+mcf.apply_bare_plot_style(s.compose, transparent=False)  # hide ticks/labels/legend
+fig = mcf.make_combined_figure(s, figsize=(6, 6))
+fig.savefig('bare.png', dpi=200, facecolor=fig.get_facecolor())
+```
+*Adjust:* transparent=True also sets facecolor='none' for a transparent margin.
+
+### overlays
+
+**Compass, beam, and scale-bar overlays**
+
+```python
+import multicolorfits as mcf
+
+# Needs the 'overlays' extra:  pip install multicolorfits[overlays]
+if mcf.overlays_available():
+    s.compose.show_compass = True
+    s.compose.show_scale_bar = True
+    s.compose.scale_bar_asec = 30.0     # arcsec
+    fig = mcf.make_combined_figure(s, figsize=(7, 7))
+```
+*Adjust:* Beam needs BMAJ/BMIN in the header (s.compose.show_beam = True). Overlays require skyplothelper.
+
+### palettes
+
+**Pick colorblind-safe colors**
+
+```python
+import multicolorfits as mcf
+
+colors = mcf.suggest_colors(3)          # vetted, distinguishable hexes
+print(mcf.list_palettes())              # named palettes
+pal = mcf.get_palette('pob', n=3)       # e.g. purple/orange/blue
+```
+*Adjust:* McfSession.colorblind_report() flags clashing layer colors; McfSession.apply_palette(name) recolors all panels.
+
+### output
+
+**Save the combined image as an RGB FITS cube**
+
+```python
+import multicolorfits as mcf
+
+mcf.save_rgb_fits('combined_rgb.fits', combined, header)
+# or from a session (keeps WCS + provenance):
+s.save_rgb_fits('combined_rgb.fits')
+```
+*Adjust:* For an ordinary PNG/JPG just use plt.imsave('out.png', combined[::-1]) (flip because FITS is origin-lower).
+
+## Function signatures
+
+def to_grey_rgb(datin, rescalefn='linear', scaletype='abs', min_max=[None, None], gamma=2.2, checkscale=False, dtype=None)
+def colorize_image(image, colorvals, colorintype='hex', dtype=<class 'numpy.float64'>, gammacorr_color=1)
+def combine_multicolor(im_list_colorized, gamma=2.2, inverse=False, dtype=<class 'numpy.float64'>)
+def combine_layers(data_list, colors, stretches=None, min_maxes=None, colorspace='rgb', blend='screen', weights=None, gamma=2.2, inverse=False, smooth_sigmas=None, preview=False, dtype=None)
+def combine_from_files(fits_paths, colors, align_reference=0, align_frame=None, align_optimal=False, **combine_kwargs)
+def rescale_image(datin, rescalefn='linear', vmin=None, vmax=None, a=None)
+def zscale_limits(datin)
+def combine_multicolor_colorspace(im_list_colorized, colorspace='lab', blend='screen', weights=None, gamma=2.2, inverse=False, dtype=<class 'numpy.float64'>)
+def combine_multicolor_alpha(im_list_colorized, background='white', mode='rgb', gamma=2.2, weights=None, dtype=<class 'numpy.float64'>)
+def composite_over_background(rgb, background=(1.0, 1.0, 1.0), alpha=None)
+class McfSession(n_panels=4)
+def make_transparent_cutout(rgb, size=None, alpha_lo=55.0, alpha_hi=99.3, alpha_gamma=0.5, alpha_source='luma', layer=None, alpha_smooth=0.0, sky_color='black', crop='auto', pad=0.05, matte='none', soft_edge=0.0, invert=False, existing_alpha='replace', wcs=None, sky_box=None)
+def save_transparent_cutout(rgba, savepath, overwrite=True)
+def preview_cutout_on_backgrounds(rgba, backgrounds=None, figsize=None)
+def crop_image(datain, hdrin, xbounds, ybounds, newref=None, savenew=False, overwrite=False)
+def align_stack(images, reference=None, optimal=False, frame=None, **kwargs)
+def reproject_image(mapin, hdrfrom, hdrto, scale=False, method='interp', interpdict={'order': 1, 'mode': 'constant', 'cval': nan}, returnfootprint=False, parallel=True)
+def make_combined_figure(session, combined=None, figsize=(7, 7), facecolor='w')
+def apply_bare_plot_style(compose, *, transparent=False)
+def overlays_available()
+def suggest_colors(n, lightness=65.0, chroma=55.0, hue_start=25.0)
+def list_palettes()
+def get_palette(name, n=None)
+def save_rgb_fits(savepath, multicolorRGBdat, commonhdr, overwrite=True, annotate=True)
+
+## Docs
+
+- [Quickstart / tutorials](https://multicolorfits.readthedocs.io/en/latest/tutorials/index.html)
+- [User guide](https://multicolorfits.readthedocs.io/en/latest/guide/index.html)
+- [Examples](https://multicolorfits.readthedocs.io/en/latest/examples/index.html)
+- [API reference](https://multicolorfits.readthedocs.io/en/latest/api/index.html)

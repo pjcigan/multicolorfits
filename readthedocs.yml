@@ -1,11 +1,8 @@
 # .readthedocs.yaml
-# Read the Docs configuration file
-# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
-
-# Required
+# Legacy filename — prefer `.readthedocs.yaml` at the repository root (same
+# content). Kept so older RTD project settings that point here still work.
 version: 2
 
-# Set the version of Python and other tools you might need
 build:
   os: ubuntu-22.04
   tools:
@@ -13,9 +10,12 @@ build:
 
 python:
   install:
-    - requirements: docs/source/requirements.txt
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
+    - requirements: docs/requirements.txt
 
-# Build documentation in the docs/ directory with Sphinx
 sphinx:
-  configuration: docs/source/conf.py
-
+  configuration: docs/conf.py
+  fail_on_warning: false

@@ -1,0 +1,30 @@
+{# MultiColorFits brand: mark + Multi/[Color]/lettering/Fits (GUI palette).
+
+   Active mark: logo_navbar-color.png (filled combo_swatch, wordmark hues).
+   Swap option (quieter, sph-like): logo_navbar-mono-light.png /
+   logo_navbar-mono-dark.png — regenerate both with ``python docs/make_logo.py``.
+#}
+{% if theme_logo_link %}
+  {% set href = theme_logo_link %}
+{% else %}
+  {% if not theme_logo.get("link") %}
+    {% set href = pathto(root_doc) %}
+  {% elif hasdoc(theme_logo.get("link")) %}
+    {% set href = pathto(theme_logo.get("link")) %}
+  {% else %}
+    {% set href = theme_logo.get("link") %}
+  {% endif %}
+{% endif %}
+
+<a class="navbar-brand logo mcf-brand" href="{{ href }}">
+  {# Color mark works on light & dark (transparent bg). Mono swap: use the
+     commented pair below with only-light / only-dark instead. #}
+  <img src="{{ pathto('_static/logo/logo_navbar-color.png', 1) }}" class="logo__image mcf-brand-mark" width="28" height="28" alt=""/>
+  {# Mono swap (comment out the color img above, uncomment these):
+  <img src="{{ pathto('_static/logo/logo_navbar-mono-light.png', 1) }}" class="logo__image mcf-brand-mark only-light" width="28" height="28" alt=""/>
+  <img src="{{ pathto('_static/logo/logo_navbar-mono-dark.png', 1) }}" class="logo__image mcf-brand-mark only-dark" width="28" height="28" alt=""/>
+  #}
+  <span class="mcf-brand-text" aria-label="MultiColorFits">
+    <span class="mcf-brand-muted">Multi</span><span class="mcf-brand-color" aria-hidden="true"><span>C</span><span>o</span><span>l</span><span>o</span><span>r</span></span><span class="mcf-brand-muted">Fits</span>
+  </span>
+</a>

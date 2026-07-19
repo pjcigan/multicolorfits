@@ -1,203 +1,468 @@
-multicolorfits -- a GUI tool to colorize and combine multiple fits images for making visually aesthetic scientific plots
+# multicolorfits
 
-version 2.1.3
+Colorize and combine multiple FITS images for visually aesthetic scientific
+plots — with any number of image layers, in any colors.
 
-API documentation at [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
+**version 3.0.0**
 
-
+API documentation: [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3256060.svg)](https://doi.org/10.5281/zenodo.3256060)
+[![ASCL](https://img.shields.io/badge/ascl-1909.002-blue.svg?colorB=262255)](https://ascl.net/1909.002)
 [![PyPI version](https://badge.fury.io/py/multicolorfits.svg)](https://badge.fury.io/py/multicolorfits)
 [![Downloads](https://pepy.tech/badge/multicolorfits)](https://pepy.tech/project/multicolorfits)
+[![License](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Powered by Astropy](https://img.shields.io/badge/powered%20by-Astropy-EE7918?logo=astropy&logoColor=white)](https://www.astropy.org)
+[![Documentation Status](https://readthedocs.org/projects/multicolorfits/badge/?version=latest)](https://multicolorfits.readthedocs.io/en/latest/)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%F0%9F%A7%AA-blue?logo=github&style=flat)](https://github.com/sponsors/pjcigan)
 
+Sharing / customization: please play around — BSD 3-Clause License.
 
-Sharing/Customization: Please, play around!  (MIT License)
+If you find this useful for your work, giving me (Phil Cigan) a nod in your
+acknowledgements would be greatly appreciated.  For a formal citation, see
+[`CITATION.cff`](CITATION.cff) (GitHub *Cite this repository*), BibTeX from
+[the ASCL entry on ADS](https://ui.adsabs.harvard.edu/abs/2019ascl.soft09002C/abstract)
+(`ascl:1909.002`), or the
+[Zenodo DOI](https://doi.org/10.5281/zenodo.3256060) (*Export* panel; ADS also
+indexes [10.5281/zenodo.3256061](https://ui.adsabs.harvard.edu/abs/2019zndo...3256061C/abstract)).
 
-If you find this useful for your work, giving me (Phil Cigan) a nod in your acknowledgements would be greatly appreciated.  For the intrepid and kind people who are able to include an actual reference in their work, bibtex and other citation styles can be generated for [the ASCL entry on ADS](https://ui.adsabs.harvard.edu/abs/2019ascl.soft09002C/abstract), otherwise the [Zenodo DOI bibtex](https://doi.org/10.5281/zenodo.3256060) ('Export' panel on bottom right) is another option.  
+---
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./images/mcf_gui_Crab_dark.png">
+  <img alt="multicolorfits GUI" title="multicolorfits GUI" src="./images/mcf_gui_Crab.png">
+</picture>
 
+## What's new in v3
 
------------------------
+Version 3 rebuilds the project as a proper package **without** traits / traitsui
+/ pyface / PyQt.  The core library uses only the scientific stack (numpy,
+astropy, scipy, matplotlib, scikit-image).  GUIs and other capabilities are
+optional extras — easiest path is `pip install "multicolorfits[all]"` (browser
+GUI, desktop GUI, alignment, overlays, and signed-stretch helpers in one go).
 
-![multicolorfits GUI](./images/mcf_gui_Crab.jpg "multicolorfits GUI")
+- **Browser GUI** (primary): FastAPI + local webpage — `mcf.gui()` / `mcf-web`
+  (preferred for interactive work: faster **Fast preview**, including the
+  combined image)
+- **Desktop GUI**: PySide6 — `mcf.gui_qt()` / `mcf-qt`
 
+Scripting remains backward-compatible with v2 (`to_grey_rgb`,
+`colorize_image`, `combine_multicolor`, …).  New capabilities include Lab / RYB
+compositing modes, in-GUI layer alignment, palettes, overlays, session
+save/restore, transparent cutouts, and more — see below and
+[MIGRATION.md](MIGRATION.md).
 
+## Dependencies
 
+**Required:** numpy, matplotlib, astropy, scipy, scikit-image
 
+Requires **Python 3.9+**.
 
-# Dependencies
+**Recommended install** pulls every optional capability
+(`web`, `qt`, `reproject`, `overlays`, `pysymlog`) so you do not have to pick
+extras by hand.  Individual extras are listed below if you want a leaner
+install.
 
-* numpy
-* matplotlib
-* astropy
-* scipy
-* pyface
-* PyQt(6) (PyQt5 as a fallback, and PyQt4 should still work for older pythons)
-* traits, traitsui
-* scikit-image (skimage)
+| Extra | Provides |
+|-------|----------|
+| **`[all]`** | **Everything below (recommended default)** |
+| `[web]` | Browser GUI (fastapi, uvicorn) |
+| `[qt]` | Desktop GUI (PySide6) |
+| `[reproject]` | FITS reprojection / alignment |
+| `[overlays]` | Compass, beam, scale bar ([skyplothelper](https://skyplothelper.readthedocs.io)) |
+| `[pysymlog]` | Symmetric-log stretch helper |
 
-* reproject and/or kapteyn, for the optional reprojection convenience functions (montagepy suppport may be added in the future)
+## Installation
 
-- Tested in python 3.10, 3.7 (and python 3.4 & 2.7 with PyQt4).  There are some issues with the GUI in python 3.11 (likely TraitsUI compatibility with PyQt6) - work there is ongoing.
+Most users should install with all extras:
 
+```console
+pip install "multicolorfits[all]"
+```
 
-# Installation
+That gives you both GUIs, on-the-fly alignment, plot overlays, and related
+helpers.  Then launch with:
 
-Install with pip
+```console
+mcf-web
+# or: mcf-qt
+```
+
+Core library only (scripting, no GUI):
+
 ```console
 pip install multicolorfits
 ```
 
-Alternatively, you can simply save a copy of multicolorfits.py in a local working directory.  This is suitable for running it in standalone mode (from the terminal), and does not require a regular installation with pip.
+A la carte extras if you prefer a smaller install, e.g. browser GUI alone:
 
+```console
+pip install "multicolorfits[web]"
+```
 
-# Usage
+From a clone (development, with tests):
 
-To call it interactively from within e.g., ipython:
+```console
+pip install -e ".[all,test]"
+```
+
+**Conda + `[qt]`.**  The browser GUI (`[web]`) needs no Qt and is safe in
+shared conda stacks.  `[qt]` / `[all]` pull **PySide6** from PyPI (a Qt6
+runtime).  Mixing that — or leftover pip `PyQt6` — into a conda-forge **Qt5**
+env can core-dump interactive `plt.show()` while headless Agg still works.
+Prefer `[web]` in shared conda Qt5 environments; install the desktop GUI in a
+dedicated env.  Audit / repair: see
+[docs/installation.md](docs/installation.md#conda-environments-and-the-qt--pyside6-extra).
+
+## For AI agents / LLMs
+
+multicolorfits exposes a capability map that agents (and newcomers) can
+ingest without guessing the API:
+
+```python
+import multicolorfits as mcf
+mcf.overview()            # mental model, conventions, task index
+mcf.recipes('cutout')     # copy-paste recipes matching a keyword
+cat = mcf.overview(as_dict=True)   # structured catalog for tools
+```
+
+The same source (`multicolorfits/_overview.py`) generates the static files
+[`llms.txt`](llms.txt) and [`llms-full.txt`](llms-full.txt) (inlined runnable
+recipe code; the full file also adds function signatures).  Regenerate with
+`python scripts/make_llms_txt.py` — CI fails if they drift.  On Read the Docs
+they are also served at the site root
+(`https://multicolorfits.readthedocs.io/en/latest/llms.txt`).
+
+## Usage
+
+### Interactive GUI
 
 ```python
 import multicolorfits as mcf
 
-mcf.mcf_gui()  #This command runs the interactive viewer
+mcf.gui()       # browser GUI — recommended default ([all] or [web])
+# mcf.gui_qt()  # PySide6 desktop GUI ([all] or [qt])
+# mcf.mcf_gui() # still works as an alias for gui()
 ```
 
+Prefer **`mcf.gui()`** / `mcf-web` for interactive work: the browser app has a
+much faster **Fast preview** path (including live updates of the combined
+image) while you tweak stretches, colors, and compositing.  The Qt GUI shares
+the same session model and is fine when you want a native window; new preview
+performance work lands in the browser first.
 
-Alternatively, can be used as a standalone script, from a terminal:
+Or from a terminal:
 
 ```console
-python multicolorfits.py
+mcf-web
+# mcf-qt
 ```
 
+Typical workflow:
 
+1. Load and adjust each component image (stretch, levels, color, optional smoothing).
+2. Choose compositing mode / background; use **Fast preview** while iterating,
+   then **Plot Full Resolution** for the WCS figure.
+3. Re-adjust and replot as needed.
+4. Save an image, FITS RGB cube, session JSON, or an export script.
+   Sessions round-trip with **Save Session…** / **Load Session…** (or
+   `mcf.gui(state='session.json')`).
 
-When the viewer appears:
-1. Load and adjust the component images
-    * In the left panel, load up to four images.  A snapshot preview will be visible after clicking "Plot Single".
-    * Adjust the stretch function and levels of each image.  
-2. Combine the component images to plot a single combined image
-    * In the right panel (at the top), adjust the tick color and WCS format
-    * At the bottom of the right panel, click "Plot combined" to display the final product
-3. Re-adjust component images and re-plot as necessary
-4. If desired, use buttons at the bottom right to print some of the plot params, save as image, or save as a fits RGB cube.
+If layers are on different pixel grids, use **Align layers…** (needs
+`[reproject]`), or reproject in a script first.
 
+### Scripting
 
-# Tutorials / Examples
+```python
+import astropy.io.fits as pyfits
+import multicolorfits as mcf
 
-[Follow this link for some multicolorfits tutorials](./examples.md)
+data1, hdr1 = pyfits.getdata('image1.fits', header=True)
+data2, hdr2 = pyfits.getdata('image2.fits', header=True)   # same pixel grid
 
-Also see some more example images below.
+grey1 = mcf.to_grey_rgb(data1, rescalefn='asinh', min_max=[0., 1.2], gamma=2.2)
+grey2 = mcf.to_grey_rgb(data2, rescalefn='sqrt',  min_max=[0., 0.8], gamma=2.2)
 
+col1 = mcf.colorize_image(grey1, '#C11B17', colorintype='hex', gammacorr_color=2.2)
+col2 = mcf.colorize_image(grey2, '#4CC417', colorintype='hex', gammacorr_color=2.2)
 
+combined = mcf.combine_multicolor([col1, col2], gamma=2.2)
 
-# Features
+mcf.plot_combined_rgb(combined, hdr1, 'My 2-color image', './out.png')
+mcf.save_rgb_fits('./out_rgb.fits', combined, hdr1)
+```
 
-* GUI can load up to 4 images (you could customize it to include more)
-    - Can copy/paste into input box or use file explorer
-    - **__Note:__** At the moment, all input images must share a common pixel grid (no reprojection is done on the fly, though functions are included to do this manually in scripts.  On-the-fly reprojection will come in a future update.)
-* Specify your preferred color for each image:
-    - Type in HEX/HTML color code (or fraction 0.0--1.0 for shades of grey)
-    - Use a GUI color picker -- allows interactive color selection
-* Interactively adjust each image's stretch and levels
-    - Stretch functions include linear, square root, squared, log, power, sinh, asinh
-    - Specify data min/max with input boxes, slidebar, or auto min/max & Zscale buttons
-* Edit component image headers, with an option to save out to .txt
-* Simple Gaussian smoothing on individual component images
-* View each input image separately in the left panel, and the combined image in the right panel
-* Ability to adjust the gamma value (default=2.2)
-* Specify WCS as sexagesimal or degree, and adjust tick formatting
-* Can specify WCS tick color with input box or color picker (useful for changing to light ticks with dark background)
-* Use of matplotlib interactive plot buttons (zoom/pan/home/ edit labels/ etc.), just below the image panels
-* The main window (right panel) has a status bar that prints out the cursor's current position in world coordinates, and also prints out the R,G,B values at that pixel.
-* Save image (.png, .jpg, .pdf...)
-* Save fits file with RGB channels
-* Print out plot/scale parameters used to the terminal, for use with custom plot commands
-* Can make 'inverse' RGB plots (must click 'Plot Inverted Single' for each component before clicking 'Plot Inverted Combined')
+`PanelState.load_fits()` / `squeeze_image()` drop degenerate FITS axes and strip
+ghost higher-axis WCS cards from nominally 2D headers.
 
+If images are not on a common grid (included with `[all]`, or install
+`[reproject]`):
 
+```python
+data2_reproj = mcf.reproject_image(data2, hdr2, hdr1)
+```
 
-# Spotted in the wild
+### Mid-level session API
 
-Here are some plots out in the real world that were made with multicolorfits
+Both GUIs drive the same `McfSession` object, which you can also use in scripts:
 
-* [Rigby+2021, MNRAS, 502, 4576 -- Figure 1](https://ui.adsabs.harvard.edu/abs/2021MNRAS.502.4576R/abstract)
-* [Marian+2020, ApJ, 904, 79](https://ui.adsabs.harvard.edu/abs/2020ApJ...904...79M/abstract) -- [Figures 2 & 8](https://iopscience.iop.org/article/10.3847/1538-4357/abbd3e#apjabbd3ef2)
-* Nature 'behind the paper' blog, SN1987A dust
-    - [Splash image](https://astronomycommunity.nature.com/posts/57171-peering-into-the-dusty-heart-of-sn-1987a) (at the top)
-    - [First set of images](https://images.zapnito.com/uploads/976eb83c22e0a42a3889d30569cd115b/c7ef3498-2ccf-4f69-ae64-20795f8869a9.jpeg)
-* [Watkins+2019, A&A, 628A, 21](https://arxiv.org/abs/1906.09275) -- [Figure 1](https://www.aanda.org/articles/aa/full_html/2019/08/aa35277-19/F1.html)
+```python
+from multicolorfits import McfSession
 
+s = McfSession()
+s.panels[0].load_fits('image1.fits')
+s.panels[0].stretch = 'asinh'
+s.panels[0].apply_zscale()
+s.panels[0].color = '#C11B17'
+s.compose.gamma = 2.2
 
+combined = s.render_combined()
+s.save_rgb_fits('./out_rgb.fits')
+print(s.export_script())
+```
 
------------------------
+## Tutorials / examples
 
+- Sphinx examples (canonical): [docs/examples/](docs/examples/)
+  (NGC 602, WLM, M74 cutouts, Crab gallery, color-space suite)
+- Short GitHub pointers: [examples/](examples/)
+- Conceptual guides: [docs/guide/](docs/guide/)
+- Tutorials (notebooks): [docs/tutorials/](docs/tutorials/)
 
+Also see the gallery images further below.
 
-# Motivation
+## Features
 
-I developed this tool for a variety of reasons.  
-* I was sick of how long it took to manually get appropriate stretch levels, etc. for files for use in python plotting scripts
-* It's possible to do this kind of thing with e.g., Photoshop or GIMP, but perhaps we want a method for doing things __programmatically__ and without loss of useful information
-* I wanted a way to colorize images while retaining WCS info -- for plotting coordinates on the axes, reprojecting, etc.
-* I wanted to expand beyond just the simple pure red + pure green + pure blue combination.  Sometimes these colors can make for odd results (to quote a colleague: "That's weird, stars shouldn't look green...")
-* I wanted to experiment with non-standard display options -- see, e.g., the 'inverted' RGB cubes (white background) work in progress
+* Image panels in the GUI (default four; add more with **+ Add panel**, up to 16)
+  - Load by path, file browser, or upload (web GUI)
+  - **Note:** layers must share a pixel grid to combine.  Use **Align layers…**
+    in the GUI or `reproject_image` / `align_stack` in scripts (`[reproject]`).
+  - Scripts can still construct `McfSession(n_panels=N)` or call
+    `session.add_panel()` / `remove_panel()` directly
+* Per-layer color (hex / picker), stretch (linear, sqrt, squared, log, power,
+  sinh, asinh, …), min/max or percentile levels, zscale, optional Gaussian smoothing
+* Header editor per panel; save/load header text
+* Compositing modes: classic RGB sum; **CIE Lab** (recommended alternative);
+  experimental HSV/HSL; subtractive **RYB** / **CMYK**; background black / white /
+  transparent / custom color
+* Curated palettes and hue-wheel “tune colors”, with a color-vision safety check
+* Combined figure options: WCS tick format, gamma, canvas color (incl. transparent),
+  channel legend, color-combination swatch, band labels
+* Optional WCS overlays (compass, beam, scale bar) via `[overlays]`
+* **Fast preview** (downsampled float32, including the combined image) and
+  **Plot Full Resolution** WCS plot — snappiest in the browser GUI
+* Light / dark GUI theme
+* **Save / load GUI sessions** as JSON (paths + settings, not pixels) —
+  resume later or preload with `mcf.gui(state=…)` / `mcf-web --state`
+* Save image (png/jpg/pdf/…), FITS RGB cube with provenance HISTORY, transparent
+  cutouts for slides/stamps, and an export-script for recreating the plot
+* Cursor readout of sky coordinates and per-layer values on the combined view
+* Notebook embed (`mcf.gui_embed`) for Jupyter / Colab demos
 
+## Color mixing (CIE Lab and friends)
 
+Classic `combine_multicolor` sums RGB channels.  That is fast, but bright
+overlaps can wash out toward white.  Lab mixing keeps hues more distinct:
 
+```python
+combined = mcf.combine_multicolor_colorspace(
+    [col1, col2], colorspace='lab', blend='screen', gamma=2.2)
+```
 
-Here are some useful resources for downloading some nicely tidied-up fits files suitable for using in this tool:
-- [Chandra OpenFits page](http://chandra.harvard.edu/photo/openFITS/multiwavelength_data.html)
-- [Fits Liberator Datasets Page](https://www.spacetelescope.org/projects/fits_liberator/datasets_archives/)
-- [LITTLE THINGS (dwarf galaxy survey) data hosted by NRAO](https://science.nrao.edu/science/surveys/littlethings)
-- [SkyView (Virtual Observatory)](https://skyview.gsfc.nasa.gov/current/cgi/titlepage.pl)
-- [Sloan Digital Sky Survey (SDSS) Sky Server](http://skyserver.sdss.org/dr15/en/tools/explore/Summary.aspx?)
-- [Tom Williams' data_buttons, a very useful tool for grabbing data for your favorite target](https://github.com/thomaswilliamsastro/data_buttons)
-- [obsplanning.download_cutout() to get fits images via SkyView.get_images() ](https://github.com/pjcigan/obsplanning)
+| `blend` | Behavior | Good for |
+|---------|----------|----------|
+| `'screen'` (default) | Accumulates brightness gracefully | General use |
+| `'max'` | Brightest layer wins per pixel | Preserving each layer's hue |
+| `'sum'` | Clipped sum | Matching the classic RGB look |
+| `'mean'` | Average | Mixing plain colors |
 
-I will be using the Kepler, M51, M101, M106 data found at the Chandra link above for the examples below.
+`colorspace='lab'` is supported in the GUIs.  `'hsv'` / `'hsl'` remain
+experimental.  See [docs/guide/color_compositing.md](docs/guide/color_compositing.md)
+and [examples/colorspace_comparison.md](examples/colorspace_comparison.md).
 
+**RYB** and a proper background control (white / transparent / custom) replace
+the old “inverse” white-background trick without flipping hues.
 
+## WCS overlays (optional)
 
+```bash
+# Already included with: pip install "multicolorfits[all]"
+pip install "multicolorfits[overlays]"   # pulls in skyplothelper
+```
 
+```python
+s.compose.show_compass = True
+s.compose.show_beam = True          # needs BMAJ/BMIN in the FITS header
+s.compose.show_scale_bar = True
+```
 
+`plot_combined_rgb(...)` accepts the same overlay flags; Export Script
+emits them when enabled.  Advanced annotation (offset WCS, graticules, globes)
+remains in the companion [skyplothelper](https://skyplothelper.readthedocs.io) package.
 
-Combining frames colorized to red, green, and blue is common practice - especially useful for images of the sky taken with filters that roughly correspond to R, G, and B light.  
-![This looks nice.](./images/m106_pureRGB.png "M106 R,G,B optical bands.")
+## Browser GUI (detail)
 
-HOWEVER - what if you have, say, only two images?  Maybe you only have the red and blue, but not the green.  
-![The overall hue appears to have a purple cast to it...](./images/m51_RBonly.png "M51, with only Red and Blue filter images.")
+```bash
+# Prefer: pip install "multicolorfits[all]"
+pip install "multicolorfits[web]"
+mcf-web                 # or: python -c "import multicolorfits as mcf; mcf.gui()"
+mcf-web --browser firefox
+mcf-web --no-browser    # start server only; open the printed URL yourself
+```
 
+```python
+import multicolorfits as mcf
+mcf.gui()                       # system default browser
+mcf.gui(browser='firefox')      # or 'google-chrome', 'chromium', …
+mcf.gui(open_browser=False)     # URL printed; open manually
+```
 
-Other reasons you may not be satisfied with a simple pure RGB cube:
+A local server starts on `http://127.0.0.1:8321` (browser opens automatically
+unless `--no-browser` / `open_browser=False`).  Everything runs on your
+machine.  See [docs/tutorials/gui_web_walkthrough.md](docs/tutorials/gui_web_walkthrough.md)
+for layout details and more browser-selection notes.
 
-- Maybe you want to make it 'pretty' or eye-catching for a press release
-![Something a little different.](./images/kepler_POT.png "Kepler's SNR with new coloration.")
+Highlights: sectioned controls (Compositing, Colors, Axes, Canvas), **Fast
+preview**, palette picker, channel legend / swatch / band labels, optional
+overlays, grid-mismatch detection with one-click align, Save Image / FITS /
+session / export script, and transparent-cutout export.
 
-- Maybe your images don't correspond to what your eye normally thinks should be the R,G,B channels and you want to cast it in a more 'normal'-looking hue combo (e.g., combining optical+radio+X-ray)
-![Looks a bit more pleasing to my eye.](./images/m101_RYBP.png "M101 in bands from the radio to X-ray.")
+### Notebooks (Jupyter / Colab)
 
-- Maybe you want to highlight one of the images or give them a different color to match another plot that you saw in a paper.
+```python
+import multicolorfits as mcf
 
-- Maybe you want to include more than 3 images (e.g., some X-ray sources on top of your RGB?)
+s = McfSession()
+s.load_files(['a.fits', 'b.fits'], colors=['#f00', '#0ff'])
+mcf.gui_embed(session=s, height=950)
+```
 
-![You can see where those bright X-ray sources are quite easily.](./images/m51_RGBL.png "M51 RGB with X-ray sources in lime.")
+See [docs/tutorials/gui_notebook_embed.py](docs/tutorials/gui_notebook_embed.py).
 
+## Desktop GUI (PySide6)
 
-- Maybe you just want to explore display options, like this 'inverted' color combination.
-![Looks interesting, could be better for white background.](./images/m51_RGB_inverse.png "M51 RGB, but 'inverted'.")
+```bash
+# Prefer: pip install "multicolorfits[all]"
+pip install "multicolorfits[qt]"
+mcf-qt
+```
 
+Same core workflow in a native window with an embedded matplotlib WCS canvas.
+Prefer the browser GUI (`mcf.gui()`) when you want the fastest live combined
+preview; new interactive performance work lands there first.
 
+Use a **dedicated** environment for `[qt]` if your main conda env already
+ships Qt5 / PyQt5 — see the [conda note under Installation](#installation).
 
-----------------------------
+## Spotted in the wild
 
+A partial list of papers and posts with multicolorfits figures:
 
-# Considerations/Caveats/Limitations
+* [Levy+2024, ApJ, 973, L55](https://ui.adsabs.harvard.edu/abs/2024ApJ...973L..55L/abstract) — Figure 1
+* [Kreckel+2024, A&A, 689, A352](https://ui.adsabs.harvard.edu/abs/2024A%26A...689A.352K/abstract) — Figures 1 and 3
+* [Watkins+2023, ApJ, 944, L24](https://ui.adsabs.harvard.edu/abs/2023ApJ...944L..24W/abstract) — several figures
+* [Rigby+2021, MNRAS, 502, 4576](https://ui.adsabs.harvard.edu/abs/2021MNRAS.502.4576R/abstract) — Figure 1
+* [Marian+2020, ApJ, 904, 79](https://ui.adsabs.harvard.edu/abs/2020ApJ...904...79M/abstract) — [Figures 2 & 8](https://iopscience.iop.org/article/10.3847/1538-4357/abbd3e#apjabbd3ef2)
+* [Watkins+2019, A&A, 628, A21](https://ui.adsabs.harvard.edu/abs/2019A%26A...628A..21W/abstract) — [Figure 1](https://www.aanda.org/articles/aa/full_html/2019/08/aa35277-19/F1.html)
+* Nature *Behind the Paper* (SN 1987A dust) — [splash](https://astronomycommunity.nature.com/posts/57171-peering-into-the-dusty-heart-of-sn-1987a) · [image set](https://images.zapnito.com/uploads/976eb83c22e0a42a3889d30569cd115b/c7ef3498-2ccf-4f69-ae64-20795f8869a9.jpeg)
 
-- For sequential combinations of physical filters/bands (e.g., [G,R,I] images, [J,H,K], etc. ), color combos similar to standard R,G,B (such as red+yellow+blue) will usually give the most 'natural'-looking results.  
-- Things tend to work best when your color choices have similar luminance (mixing light and dark colors can do weird things)
-- Certain color combos can lead to confusion (for example: red+blue adds to purple, so maybe don't choose red+purple+blue for the hues of your component frames)
-- The RGB color gamut is more limited than other colorspaces such as, e.g., CIE LAB, so you may not be able to get some specific colors you want
-- I haven't completely finished developing the 'inverted' (white background) RGB feature, so it doesn't behave 100% as expected
-- What you see on the screen will not likely appear the same way on printed paper -- need to convert RGB to CMYK for that.
-- Currently all input files must have same projection/pixel grid in the GUI -- do all your reprojection before loading them.  Astropy and the reproject package are your friends for that, and multicolorfits also includes some command line functions for reprojection. See the WLM tutorial for example usage of the functions for this that are included with multicolorfits.
-- This has not been optimized for speed.  In particular, it can be quite slow at interactive level adjustment for large files. (UN-checking the Auto-Refresh button at the top of the GUI will help.)  This could certainly be improved in future versions.
+---
+
+## Motivation
+
+* Stretch levels and colors were slow to iterate in plain plotting scripts.
+* Photoshop / GIMP can make pretty images, but we often want a **programmatic**
+  path that keeps WCS and FITS provenance.
+* Colorizing beyond pure red / green / blue (and beyond three layers) is useful
+  for multi-wavelength work and press-ready figures.
+
+Useful places to download tidy FITS for experiments:
+
+- [Chandra OpenFits](http://chandra.harvard.edu/photo/openFITS/multiwavelength_data.html)
+- [Fits Liberator datasets](https://www.spacetelescope.org/projects/fits_liberator/datasets_archives/)
+- [LITTLE THINGS (NRAO)](https://science.nrao.edu/science/surveys/littlethings)
+- [SkyView](https://skyview.gsfc.nasa.gov/current/cgi/titlepage.pl)
+- [SDSS SkyServer](http://skyserver.sdss.org/dr15/en/tools/explore/Summary.aspx?)
+- [Tom Williams' data_buttons](https://github.com/thomaswilliamsastro/data_buttons)
+- [obsplanning.download_cutout()](https://github.com/pjcigan/obsplanning)
+
+The Kepler, M51, M101, and M106 examples below use Chandra OpenFits data.
+
+Combining frames as pure red / green / blue is common — especially for filters
+that roughly match R, G, and B light:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./images/m106_pureRGB_dark.png">
+  <img alt="M106 R,G,B optical bands." title="M106 R,G,B optical bands." src="./images/m106_pureRGB.png">
+</picture>
+
+But what if you only have two images (e.g. red and blue, no green)?
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./images/m51_RBonly_dark.png">
+  <img alt="M51 with only Red and Blue." title="M51, with only Red and Blue filter images." src="./images/m51_RBonly.png">
+</picture>
+
+Other times you may want:
+
+- Something eye-catching for a press release
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./images/kepler_POT_dark.png">
+  <img alt="Kepler's SNR with non-standard coloration." title="Kepler's SNR with new coloration." src="./images/kepler_POT.png">
+</picture>
+
+- Multi-wavelength (optical + radio + X-ray) in a more natural-looking palette
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./images/m101_RYBP_dark.png">
+  <img alt="M101 from radio to X-ray." title="M101 in bands from the radio to X-ray." src="./images/m101_RYBP.png">
+</picture>
+
+- More than three layers (e.g. X-ray sources on an RGB optical stack)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./images/m51_RGBL_dark.png">
+  <img alt="M51 RGB with X-ray sources in lime." title="M51 RGB with X-ray sources in lime." src="./images/m51_RGBL.png">
+</picture>
+
+- A white-background / inverted presentation style
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./images/m51_RGB_inverse_dark.png">
+  <img alt="M51 RGB inverted." title="M51 RGB, but 'inverted'." src="./images/m51_RGB_inverse.png">
+</picture>
+
+In v3, prefer the compositing **Background** control (white / transparent /
+custom) instead of the legacy inverse checkbox — bright colors stay true while
+empty sky fades to the chosen background.
+
+---
+
+## Considerations / caveats
+
+- For sequential filter bands (e.g. G/R/I, J/H/K), combos near standard R/G/B
+  (such as red + yellow + blue) usually look most natural.
+- Results are best when layer colors have similar luminance.
+- Some color choices can confuse overlaps (e.g. red + blue already make purple).
+- On-screen color is not the same as print CMYK; use the CMYK mix mode or a
+  print workflow when preparing hardcopy.
+- Layers must share a pixel grid before combining — align in the GUI or with
+  `reproject_image` / `align_stack`.
+- Large files: use **Fast preview** for interactive work; **Plot Full
+  Resolution** when exporting.
+
+## Tests
+
+```bash
+pip install -e ".[test]"
+pytest
+```
+
+## Migrating from v2.x
+
+See [MIGRATION.md](MIGRATION.md).  Short version: scripting code runs unchanged;
+install with `pip install "multicolorfits[all]"` for GUIs and helpers, or pick
+`[web]` / `[qt]` à la carte; traits / traitsui / pyface / PyQt are no longer
+required.

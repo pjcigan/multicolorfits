@@ -1,0 +1,12 @@
+[
+  {
+    "name": "dev (3.0)",
+    "version": "latest",
+    "url": "https://multicolorfits.readthedocs.io/en/latest/"
+  },
+  {
+    "name": "stable",
+    "version": "stable",
+    "url": "https://multicolorfits.readthedocs.io/en/stable/"
+  }
+]

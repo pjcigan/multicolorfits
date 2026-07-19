@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MultiColorFits</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/static/logo_favicon.png" type="image/png" sizes="64x64">
+<link rel="icon" href="/static/logo_favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/static/logo_favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/style.css?v=3.0.0b7">
+<script>
+  // Apply the saved (or OS-preferred) theme before first paint to avoid a flash.
+  (function () {
+    try {
+      var param = new URLSearchParams(window.location.search).get('theme');
+      var saved = (param === 'light' || param === 'dark') ? param : localStorage.getItem('mcf-theme');
+      var theme = saved || (window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  })();
+</script>
+</head>
+<body>
+
+<header>
+  <h1 class="brand-title">
+    <img class="brand-mark" src="/static/mcf-mark.svg" width="28" height="28" alt="">
+    <span class="brand-text"><span class="brand-muted">Multi</span><span class="brand-color" aria-label="Color"><span>C</span><span>o</span><span>l</span><span>o</span><span>r</span></span><span class="brand-muted">Fits</span></span>
+  </h1>
+  <div class="header-controls">
+    <label class="chk"><input type="checkbox" id="autorefresh" checked> Auto-refresh previews</label>
+    <label class="chk" title="Panel thumbnails use full FITS resolution (slower when adjusting sliders). Default is a fast downsampled float32 preview.">
+      <input type="checkbox" id="panel-preview-hd"> Full-res panel previews
+    </label>
+    <button id="theme-toggle" type="button" title="Toggle light / dark theme">
+      <span class="theme-dark-icon">&#9790;</span><span class="theme-light-icon">&#9728;</span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- Left: image panels -->
+  <aside id="panels-col">
+    <section id="panels"></section>
+    <div id="panels-actions">
+      <button type="button" id="btn-add-panel"
+              title="Add another image panel (up to 16)">+ Add panel</button>
+    </div>
+  </aside>
+
+  <!-- Right: combined view -->
+  <section id="combined">
+    <div class="compose-panel">
+      <nav class="compose-tabs" role="tablist" aria-label="Combined image settings">
+        <button type="button" class="compose-tab active" role="tab" aria-selected="true" data-tab="compositing">Compositing</button>
+        <button type="button" class="compose-tab" role="tab" aria-selected="false" data-tab="colors">Colors</button>
+        <button type="button" class="compose-tab" role="tab" aria-selected="false" data-tab="axes">Axes</button>
+        <button type="button" class="compose-tab" role="tab" aria-selected="false" data-tab="canvas">Canvas</button>
+      </nav>
+      <div class="compose-tabpanels">
+        <div class="compose-tabpanel active" id="compose-tab-compositing" role="tabpanel">
+          <fieldset class="control-group">
+            <legend>Compositing</legend>
+        <label title="Compose gamma. Affects the combined image (classic RGB midtones, and RYB/Lab/CMYK tone). Single-panel thumbnails intentionally look the same at any gamma.">Gamma <input type="number" id="gamma" value="2.2" min="0.1" max="10" step="0.1"></label>
+        <label class="chk"><input type="checkbox" id="inverse"> Inverse (white bg)</label>
+        <label title="How overlapping layer colors are combined. RGB is the classic channel sum; Lab/HSV/HSL mix in a perceptual color space and avoid washing out to white; RYB mixes subtractively like paint (yellow+blue=green).">Color mixing
+          <select id="combine-mode">
+            <option value="rgb">RGB (classic)</option>
+            <option value="lab">CIE Lab</option>
+            <option value="hsv">HSV</option>
+            <option value="hsl">HSL</option>
+            <option value="ryb">RYB (paint)</option>
+            <option value="cmyk">CMYK (print)</option>
+          </select>
+        </label>
+        <label title="How layer brightnesses combine (Lab/HSV/HSL only). screen accumulates gracefully; sum is closest to classic RGB; max shows the brightest layer; mean averages.">Blend
+          <select id="combine-blend" disabled>
+            <option value="screen">screen</option>
+            <option value="sum">sum</option>
+            <option value="max">max</option>
+            <option value="mean">mean</option>
+          </select>
+        </label>
+        <label title="What shows at zero signal in the combined image. Black is classic; White is publication-style; Transparent exports a transparent PNG (e.g. for slides); or pick any custom color. A non-black background replaces the legacy Inverse checkbox.">Background
+          <select id="combine-bg">
+            <option value="black">Black (classic)</option>
+            <option value="white">White</option>
+            <option value="transparent">Transparent</option>
+            <option value="custom">Custom color…</option>
+          </select>
+        </label>
+        <span class="colorpair" id="combine-bg-pair" style="display:none">
+          <input type="color" id="combine-bg-picker" value="#12243a">
+          <input type="text" id="combine-bg-color" value="#12243a" size="8">
+        </span>
+          </fieldset>
+        </div>
+
+        <div class="compose-tabpanel" id="compose-tab-colors" role="tabpanel" hidden>
+          <fieldset class="control-group">
+            <legend>Colors</legend>
+        <label title="Apply a curated set of well-separated colors to the loaded layers, in order. 'Perceptual (auto)' generates evenly-spaced colors for however many layers are loaded.">Palette
+          <select id="palette-select"></select>
+        </label>
+        <span id="palette-swatches" class="palette-swatches" title="Preview of this palette's colors"></span>
+        <button id="btn-apply-palette" title="Set each loaded layer's color from this palette">Apply to layers</button>
+        <button id="btn-tune-colors" title="Rotate layer hues on the color wheel while preserving their spacing (live overlapping-circle preview)">Tune colors…</button>
+        <span id="cvd-status" class="cvd-status" title="Colour-vision-deficiency check of the current layer colors"></span>
+          </fieldset>
+        </div>
+
+        <div class="compose-tabpanel" id="compose-tab-axes" role="tabpanel" hidden>
+          <fieldset class="control-group">
+            <legend>Axes &amp; coordinates</legend>
+        <label>Coordinates
+          <select id="coord-style">
+            <option value="sexagesimal">Sexagesimal</option>
+            <option value="decimal">Decimal</option>
+          </select>
+        </label>
+        <label class="chk"><input type="checkbox" id="minorticks" checked> Minor ticks</label>
+        <label>Tick color
+          <span class="colorpair">
+            <input type="color" id="tickcolor-picker" value="#e5e5e5">
+            <input type="text" id="tickcolor" value="0.9" size="8">
+          </span>
+        </label>
+        <label title="Major tick length in points">Major len
+          <input type="number" id="tick-major-size" min="0" step="0.5" value="8" style="width:4em">
+        </label>
+        <label title="Minor tick length in points">Minor len
+          <input type="number" id="tick-minor-size" min="0" step="0.5" value="4" style="width:4em">
+        </label>
+        <label title="Major tick line width in points">Major width
+          <input type="number" id="tick-major-width" min="0" step="0.1" value="1" style="width:4em">
+        </label>
+        <label title="Minor tick line width in points (plain axes only; WCS minor width follows major)">Minor width
+          <input type="number" id="tick-minor-width" min="0" step="0.1" value="0.5" style="width:4em">
+        </label>
+        <label title="Draw ticks inward, outward, or both sides of the frame (WCS plots approximate inout as inward)">Tick dir
+          <select id="tick-direction">
+            <option value="in">in</option>
+            <option value="out">out</option>
+            <option value="inout">inout</option>
+          </select>
+        </label>
+        <label title="X axis label (leave blank for auto from FITS CTYPE)">X label
+          <input type="text" id="plot-xlabel" class="input-wide" placeholder="(auto)">
+        </label>
+        <label title="Y axis label (leave blank for auto from FITS CTYPE)">Y label
+          <input type="text" id="plot-ylabel" class="input-wide" placeholder="(auto)">
+        </label>
+          </fieldset>
+        </div>
+
+        <div class="compose-tabpanel" id="compose-tab-canvas" role="tabpanel" hidden>
+          <fieldset class="control-group">
+            <legend>Canvas &amp; annotation</legend>
+        <label title="Background behind the tick labels / axes of the combined plot. Type 'none' for a transparent background (e.g. for slides), 'white' for publication, or any color.">Canvas color
+          <span class="colorpair">
+            <input type="color" id="facecolor-picker" value="#ffffff">
+            <input type="text" id="facecolor" value="white" size="8">
+          </span>
+        </label>
+        <label class="chk" title="Hide ticks, coordinate labels, title, legend, and overlays — image pixels only (publication / image-only style). Pair with canvas color 'none' for a transparent margin."><input type="checkbox" id="bare-plot"> Bare image (no frame)</label>
+        <label>Title <input type="text" id="plot-title" class="input-wide" placeholder="(none)"></label>
+        <label class="chk" title="Show a legend mapping each color to its image on the combined figure"><input type="checkbox" id="show-legend"> Legend</label>
+        <label title="Where to place the channel legend on the combined figure">
+          <select id="legend-loc">
+            <option value="upper right">upper right</option>
+            <option value="upper left">upper left</option>
+            <option value="lower right">lower right</option>
+            <option value="lower left">lower left</option>
+          </select>
+        </label>
+        <label class="chk" title="Overlapping colored circles showing how the channel colors combine (composite-mode-aware: overlaps use the same RGB/RYB/Lab mixing as the image)"><input type="checkbox" id="show-swatch"> Color-combo swatch</label>
+        <label title="Where to place the color-combination swatch">
+          <select id="swatch-loc">
+            <option value="lower right">lower right</option>
+            <option value="lower left">lower left</option>
+            <option value="upper right">upper right</option>
+            <option value="upper left">upper left</option>
+          </select>
+        </label>
+        <label class="chk" title="Label each circle in the swatch with its channel name"><input type="checkbox" id="swatch-labels"> swatch labels</label>
+        <label title="Push swatch circle labels outward into each circle's outer lobe (0 = centre, ~0.6 = default)">
+          Label offset
+          <input type="range" id="swatch-label-offset" min="0" max="1" step="0.01" value="0.62">
+          <input type="number" id="swatch-label-offset-num" min="0" max="1" step="0.01" value="0.62" style="width:4em">
+        </label>
+        <label title="Corner inset size as a fraction of the plot (default 0.24 ≈ 24%)">
+          Swatch scale
+          <input type="range" id="swatch-inset-scale" min="0.08" max="0.45" step="0.01" value="0.24">
+          <input type="number" id="swatch-inset-scale-num" min="0.08" max="0.45" step="0.01" value="0.24" style="width:4em">
+        </label>
+        <label title="Pixel resolution of the rendered swatch image (higher = sharper, slower)">
+          Swatch pixels
+          <input type="number" id="swatch-size" min="128" max="640" step="32" value="320" style="width:5em">
+        </label>
+        <label class="chk" title="Print each channel's label in its color in a corner of the combined figure"><input type="checkbox" id="show-band-labels"> Band labels</label>
+        <label title="Where to place the colored band labels">
+          <select id="band-labels-loc">
+            <option value="upper left">upper left</option>
+            <option value="upper right">upper right</option>
+            <option value="lower left">lower left</option>
+            <option value="lower right">lower right</option>
+          </select>
+        </label>
+        <span class="overlay-group" title="Requires pip install multicolorfits[overlays] (skyplothelper). Applied on the full WCS plot only.">
+          <label class="chk" title="North/east compass rose (skyplothelper; needs [overlays] extra)"><input type="checkbox" id="show-compass"> Compass</label>
+          <label title="Compass corner">
+            <select id="compass-loc">
+              <option value="lower left">lower left</option>
+              <option value="lower right">lower right</option>
+              <option value="upper left">upper left</option>
+              <option value="upper right">upper right</option>
+            </select>
+          </label>
+          <label class="chk" title="FITS beam ellipse from BMAJ/BMIN (skyplothelper; needs [overlays] extra)"><input type="checkbox" id="show-beam"> Beam</label>
+          <label title="Beam corner">
+            <select id="beam-loc">
+              <option value="lower left">lower left</option>
+              <option value="lower right">lower right</option>
+              <option value="upper left">upper left</option>
+              <option value="upper right">upper right</option>
+            </select>
+          </label>
+          <label title="Beam drawing style">
+            <select id="beam-style">
+              <option value="crosshair">crosshair</option>
+              <option value="ellipse">ellipse</option>
+              <option value="crosshairgrid">crosshairgrid</option>
+            </select>
+          </label>
+          <label class="chk" title="Arcsecond scale bar (skyplothelper; needs [overlays] extra)"><input type="checkbox" id="show-scale-bar"> Scale bar</label>
+          <label title="Scale-bar length in arcsec (0 = auto)">
+            <input type="number" id="scale-bar-asec" min="0" step="0.1" value="0" style="width:5em"> asec
+          </label>
+          <label title="Scale-bar corner (matplotlib anchor code)">
+            <select id="scale-bar-loc">
+              <option value="4">lower right</option>
+              <option value="3">lower left</option>
+              <option value="2">upper left</option>
+              <option value="1">upper right</option>
+            </select>
+          </label>
+          <label title="Scale bar line and label color">Bar color
+            <input type="text" id="scale-bar-color" value="white" size="8">
+          </label>
+          <label title="Outline drawn under the bar for contrast on dark images">Stroke
+            <input type="text" id="scale-bar-stroke" value="black" size="8">
+          </label>
+          <label title="Stroke width in points">Stroke w
+            <input type="number" id="scale-bar-stroke-lw" min="0" step="0.25" value="1.75" style="width:4em">
+          </label>
+        </span>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+
+    <div id="grid-warning" hidden>
+      <span class="grid-warning-icon">&#9888;</span>
+      <span id="grid-warning-text"></span>
+    </div>
+
+    <div class="action-bar">
+      <div class="action-primary">
+        <button id="btn-plot-combined" class="primary" title="Render the full-resolution WCS figure (axes, overlays). Use Fast preview for quick interactive updates.">Plot Full Resolution</button>
+        <label class="chk" title="Fast combined preview from the same downsampled buffers as the left panels (GPU when available). Uncheck or click Plot Full Resolution for the publication-quality WCS figure.">
+          <input type="checkbox" id="live-preview" checked> Fast preview
+        </label>
+      </div>
+      <div class="action-secondary">
+        <button id="btn-align" title="Reproject loaded layers onto a common pixel grid (requires the reproject package)">Align layers…</button>
+        <button id="btn-save-session" title="Save panel paths, stretches, colors, and compose settings to a JSON file (file picker or folder browser)">Save Session…</button>
+        <button id="btn-load-session" title="Restore a session from a JSON file">Load Session…</button>
+        <button id="btn-reset-session" title="Unload all panels and restore default compose settings">Reset…</button>
+        <input type="file" id="session-file-input" accept=".json,application/json" hidden>
+        <button id="btn-save-image">Save Image…</button>
+        <button id="btn-save-fits">Save FITS…</button>
+        <button id="btn-export-cutout" title="Presentation cutout: transparent sky, optional size/matte (PNG)">Export transparent…</button>
+        <button id="btn-params">Params</button>
+        <button id="btn-export">Export Script</button>
+      </div>
+    </div>
+
+    <div id="combined-viewport">
+      <div id="combined-figure">
+        <div id="combined-placeholder">
+          <p>Load one or more FITS images in the panels on the left.
+          With <b>Fast preview</b> on, the combined view updates quickly from
+          downsampled buffers; click <b>Plot Full Resolution</b> for the WCS figure.</p>
+          <p class="note">Layers must share a common pixel grid before combining.
+          Use <b>Align layers…</b> in the toolbar if panel shapes differ, or
+          <code>mcf.reproject_image()</code> / <code>mcf.align_stack()</code> in a script.</p>
+        </div>
+        <canvas id="combined-canvas" hidden></canvas>
+        <img id="combined-img" alt="" hidden>
+        <div id="combined-spinner" class="spinner" hidden></div>
+      </div>
+      <div id="cursor-readout" class="cursor-readout" aria-live="polite"></div>
+    </div>
+
+    <div id="status"></div>
+  </section>
+</main>
+
+<!-- Modals -->
+<div id="modal-backdrop" hidden>
+  <div id="modal">
+    <div id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div id="modal-buttons"></div>
+  </div>
+</div>
+
+<template id="panel-template">
+  <div class="panel collapsed">
+    <div class="panel-head">
+      <span class="caret">&#9656;</span>
+      <span class="panel-title">Image <span class="pnum"></span></span>
+      <span class="panel-file"></span>
+    </div>
+    <div class="panel-body">
+      <div class="row file-row">
+        <input type="text" class="filepath" placeholder="/path/to/image.fits">
+        <button class="btn-load" title="Load the FITS file at this path">Load</button>
+        <button class="btn-browse" title="Browse folders on the server (starts in the last FITS directory, or the server working directory)">&#128193;</button>
+        <label class="uploadbtn" title="Upload via the browser file picker (OS may open Recents; use Browse for a known folder)">&#8679;
+          <input type="file" class="fileupload" accept=".fits,.fit,.fts" hidden>
+        </label>
+      </div>
+      <div class="preview-wrap">
+        <canvas class="preview-canvas" hidden></canvas>
+        <img class="preview" alt="" hidden>
+        <div class="preview-empty">no image</div>
+      </div>
+      <div class="row">
+        <label>Scale
+          <select class="stretch">
+            <option>linear</option><option>sqrt</option><option>squared</option>
+            <option>log</option><option>power</option><option>sinh</option><option>asinh</option>
+          </select>
+        </label>
+        <label>Color
+          <span class="colorpair">
+            <input type="color" class="color-picker" value="#ffffff">
+            <input type="text" class="color-hex" value="#FFFFFF" size="8">
+          </span>
+        </label>
+        <label title="Channel name shown in the combined-figure legend">Label
+          <input type="text" class="panel-label" size="10" placeholder="(filename)">
+        </label>
+      </div>
+      <div class="row minmax-row">
+        <label>Min <input type="number" class="vmin" step="any"></label>
+        <label>Max <input type="number" class="vmax" step="any"></label>
+      </div>
+      <div class="row slider-row">
+        <span class="slider-label">Min %</span>
+        <input type="range" class="pmin" min="0" max="100" step="0.05" value="0">
+        <span class="pmin-val">0</span>
+      </div>
+      <div class="row slider-row">
+        <span class="slider-label">Max %</span>
+        <input type="range" class="pmax" min="0" max="100" step="0.05" value="100">
+        <span class="pmax-val">100</span>
+      </div>
+      <div class="row">
+        <button class="btn-minmax" title="Reset limits to full data min/max">Min/Max</button>
+        <button class="btn-zscale" title="Set limits with the zscale algorithm">Zscale</button>
+        <button class="btn-header" title="View / edit the FITS header">Header</button>
+        <button class="btn-clear" title="Clear this panel">Clear</button>
+        <button class="btn-remove" title="Remove this panel tab">Remove</button>
+      </div>
+      <div class="row">
+        <label class="chk"><input type="checkbox" class="smooth"> Smooth</label>
+        <label>&sigma; (px) <input type="number" class="smooth-sigma" value="3" min="0.1" step="0.5"></label>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script src="/static/preview_gl.js?v=3.0.0b7"></script>
+<script src="/static/preview_client.js?v=3.0.0b7"></script>
+<script src="/static/app.js?v=3.0.0b7"></script>
+</body>
+</html>

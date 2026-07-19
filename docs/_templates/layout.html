@@ -1,0 +1,12 @@
+{# Inject Open Graph / Twitter card tags for link previews. #}
+{% extends "!layout.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <meta property="og:type" content="website"/>
+  <meta property="og:title" content="MultiColorFits"/>
+  <meta property="og:description" content="Colorize and combine FITS images for visually aesthetic scientific plots."/>
+  <meta property="og:image" content="{{ pathto('_static/logo/logo_social.png', 1) }}"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:image" content="{{ pathto('_static/logo/logo_social.png', 1) }}"/>
+{% endblock %}

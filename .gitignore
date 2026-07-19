@@ -1,3 +1,4 @@
+# Maintainer-only local notes, release checklist, visual harness, scratch data.
 hidden/
 *~
 
@@ -34,9 +35,15 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Test / tooling
+.pytest_cache/
+.venv/
+venv/
+
+# Example / probe PNG scratch (regen locally; docs ship docs/_static/)
+examples/output/
+
 # Sphinx documentation
 docs/_build/
 docs/.docs_test_env/
-
-
-
+docs/api/generated/

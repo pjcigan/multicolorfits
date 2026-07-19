@@ -1,0 +1,202 @@
+/* ---------------------------------------------------------------------------
+   multicolorfits docs — appearance overrides for pydata-sphinx-theme.
+
+   Reuses the skyplothelper *machinery* (CSS variables, content width, mode-
+   aware figures, plot-theme navbar toggle) with mcf brand accents from the
+   browser GUI palette (cool slate + cyan/amber).
+   --------------------------------------------------------------------------- */
+
+html[data-theme="light"] ::selection {
+    background-color: #4c9be8;
+    color: #ffffff;
+}
+html[data-theme="dark"] ::selection {
+    background-color: #e8a04c;
+    color: #14161b;
+}
+
+/* --- Light mode: cool paper, slate blue, amber ---------------------------- */
+html[data-theme="light"] {
+    --pst-color-background: #f1f3f7;
+    --pst-color-on-background: #e6eaf0;
+    --pst-color-surface: #ffffff;
+    --pst-color-on-surface: #1b202a;
+    --pst-color-text-base: #1b202a;
+    --pst-color-text-muted: #5c6674;
+    --pst-color-primary: #2f7fd0;
+    --pst-color-secondary: #b9740f;
+    --pst-color-accent: #46618A;
+    --pst-color-link: #2f7fd0;
+    --pst-color-link-hover: #b9740f;
+    --pst-color-border: #c7cedb;
+    --pst-color-target: #d6e8fa;
+    --pst-color-inline-code: #8A4540;
+    --pst-color-shadow: rgba(30, 40, 55, 0.1);
+}
+
+/* --- Dark mode: cool charcoal, sky blue, amber ---------------------------- */
+html[data-theme="dark"] {
+    --pst-color-background: #14161b;
+    --pst-color-on-background: #1d2026;
+    --pst-color-surface: #262a32;
+    --pst-color-on-surface: #d8dce4;
+    --pst-color-text-base: #d8dce4;
+    --pst-color-text-muted: #8a90a0;
+    --pst-color-primary: #4c9be8;
+    --pst-color-secondary: #e8a04c;
+    --pst-color-accent: #5E8C7E;
+    --pst-color-link: #4c9be8;
+    --pst-color-link-hover: #e8a04c;
+    --pst-color-border: #3a3f4a;
+    --pst-color-target: #2a3a4e;
+    --pst-color-inline-code: #e8a04c;
+    --pst-color-shadow: rgba(0, 0, 0, 0.45);
+}
+
+:root {
+    --mcf-page-width: clamp(88rem, 82vw, 130rem);
+    /* skyplothelper uranometria cycle — same as browser GUI brand lettering */
+    --mcf-brand-uran-0: #46618A;
+    --mcf-brand-uran-1: #B97C52;
+    --mcf-brand-uran-2: #C29B3C;
+    --mcf-brand-uran-3: #5E8C7E;
+    --mcf-brand-uran-4: #8A4540;
+}
+.bd-page-width {
+    max-width: var(--mcf-page-width);
+}
+.bd-main .bd-content .bd-article-container {
+    max-width: 100rem;
+}
+.bd-article p,
+.bd-article li,
+.bd-article dd > p,
+.bd-article blockquote {
+    max-width: 62em;
+}
+
+.bd-header .bd-header__inner {
+    max-width: var(--mcf-page-width);
+    margin-inline: auto;
+    align-items: center;
+}
+.bd-header .navbar-header-items,
+.bd-header .navbar-header-items__start,
+.bd-header .navbar-header-items__center,
+.bd-header .navbar-header-items__end {
+    align-items: center;
+}
+.bd-header .bd-navbar-elements .nav-link {
+    white-space: nowrap;
+}
+.bd-header .navbar-header-items__end {
+    flex-wrap: nowrap;
+}
+.bd-header .navbar-header-items {
+    border-left: 1px solid var(--pst-color-border, rgba(128, 128, 128, 0.25));
+    padding-left: 1rem;
+}
+.bd-header .navbar-header-items__start {
+    padding-right: 1rem;
+}
+.bd-header .navbar-header-items__end {
+    border-left: 1px solid var(--pst-color-border, rgba(128, 128, 128, 0.25));
+    padding-left: 0.75rem;
+    margin-left: 0.5rem;
+}
+
+/* Mode-aware figures (paired .plot-light / .plot-dark PNGs) */
+html[data-plot-theme="dark"] img.plot-light { display: none; }
+html[data-plot-theme="light"] img.plot-dark { display: none; }
+html:not([data-plot-theme]) img.plot-dark { display: none; }
+
+img.sph-plot,
+img.mcf-plot {
+    border-radius: 6px;
+    border: 1px solid var(--pst-color-border, rgba(128, 128, 128, 0.25));
+    max-width: 100%;
+}
+
+/* Genuinely transparent RGBA images (e.g. cutout stamps): no frame, no
+   theme-injected white backing, no dark-mode brightness filter — the page
+   background is supposed to show through. */
+img.mcf-stamp {
+    background: transparent !important;
+    border: none !important;
+    filter: none !important;
+    max-width: 100%;
+}
+
+.sph-plot-theme-glyph {
+    position: relative;
+    display: inline-block;
+    width: 1.3em;
+    height: 1.3em;
+    vertical-align: -0.25em;
+}
+.sph-plot-theme-glyph > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.sph-plot-theme-glyph .sph-plot-axes { opacity: 0.75; }
+.sph-plot-theme-badge {
+    position: absolute;
+    top: -0.08em;
+    right: -0.08em;
+    font-size: 0.8em;
+    font-weight: 700;
+    line-height: 1;
+}
+.sph-plot-theme-toggle[data-mode="light"],
+.sph-plot-theme-toggle[data-mode="dark"] {
+    color: var(--pst-color-primary);
+}
+
+/* Brand mark in the navbar wordmark area (if used) */
+.navbar-brand img.logo,
+.navbar-brand .mcf-brand-mark {
+    height: 1.6rem;
+    width: auto;
+}
+
+/* MultiColorFits navbar wordmark (matches GUI .brand-color lettering) */
+.navbar-brand.mcf-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    text-decoration: none !important;
+}
+.navbar-brand.mcf-brand .mcf-brand-text {
+    display: inline-flex;
+    align-items: baseline;
+    font-weight: 600;
+    font-size: 1.15rem;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    margin: 0;
+}
+.navbar-brand.mcf-brand .mcf-brand-muted {
+    color: var(--pst-color-text-base);
+}
+.navbar-brand.mcf-brand .mcf-brand-color {
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+.navbar-brand.mcf-brand .mcf-brand-color span:nth-child(1) { color: var(--mcf-brand-uran-0); }
+.navbar-brand.mcf-brand .mcf-brand-color span:nth-child(2) { color: var(--mcf-brand-uran-1); }
+.navbar-brand.mcf-brand .mcf-brand-color span:nth-child(3) { color: var(--mcf-brand-uran-2); }
+.navbar-brand.mcf-brand .mcf-brand-color span:nth-child(4) { color: var(--mcf-brand-uran-3); }
+.navbar-brand.mcf-brand .mcf-brand-color span:nth-child(5) { color: var(--mcf-brand-uran-4); }
+.navbar-brand.mcf-brand:hover .mcf-brand-muted {
+    color: var(--pst-color-primary);
+}
+
+/* Landing-page Crab hero (docs/index.md) */
+img.mcf-hero-crab {
+    display: block;
+    margin: 1.25rem auto 1.75rem;
+    max-width: min(420px, 100%);
+    height: auto;
+    border-radius: 0; /* full-bleed cutout on black — no card chrome */
+}

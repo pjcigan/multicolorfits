@@ -1,0 +1,71 @@
+cff-version: 1.2.0
+message: >-
+  If you use multicolorfits in your work, please cite it using the metadata
+  below (ASCL preferred for ADS/BibTeX; Zenodo DOI also fine).
+title: "multicolorfits"
+abstract: >-
+  Colorize and combine multiple FITS images for visually aesthetic scientific
+  plots — with any number of image layers, in any colors.
+type: software
+authors:
+  - family-names: "Cigan"
+    given-names: "Phil"
+repository-code: "https://github.com/pjcigan/multicolorfits"
+url: "https://github.com/pjcigan/multicolorfits"
+repository-artifact: "https://pypi.org/project/multicolorfits/"
+license: BSD-3-Clause
+version: "3.0.0"
+date-released: "2026-07-18"
+keywords:
+  - astronomy
+  - visualization
+  - fits
+  - multiwavelength
+  - color composite
+# Concept DOI — resolves to the latest Zenodo version for this software.
+doi: "10.5281/zenodo.3256060"
+
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.3256060"
+    description: "Zenodo concept DOI (always points at the latest deposit)"
+  - type: doi
+    value: "10.5281/zenodo.3256061"
+    description: "Zenodo version DOI for the v1.2 deposit indexed by ADS"
+  - type: other
+    value: "ascl:1909.002"
+    description: "Astrophysics Source Code Library record"
+
+preferred-citation:
+  type: software
+  authors:
+    - family-names: "Cigan"
+      given-names: "Phil"
+  title: "MultiColorFits: Colorize and combine multiple fits images for visually aesthetic scientific plots"
+  year: 2019
+  month: 9
+  version: "ascl:1909.002"
+  url: "https://ascl.net/1909.002"
+  identifiers:
+    - type: other
+      value: "ascl:1909.002"
+    - type: other
+      value: "2019ascl.soft09002C"
+      description: "ADS bibcode"
+
+references:
+  - type: software
+    authors:
+      - family-names: "Cigan"
+        given-names: "Phil"
+    title: "pjcigan/multicolorfits: MultiColorFits"
+    year: 2019
+    doi: "10.5281/zenodo.3256061"
+    url: "https://doi.org/10.5281/zenodo.3256061"
+    identifiers:
+      - type: other
+        value: "2019zndo...3256061C"
+        description: "ADS bibcode"
+    notes: >-
+      Zenodo deposit indexed by ADS (v1.2). Newer Zenodo versions share the
+      concept DOI 10.5281/zenodo.3256060.
