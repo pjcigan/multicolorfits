@@ -9,7 +9,7 @@ API documentation: [https://multicolorfits.readthedocs.io](https://multicolorfit
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3256060.svg)](https://doi.org/10.5281/zenodo.3256060)
 [![ASCL](https://img.shields.io/badge/ascl-1909.002-blue.svg?colorB=262255)](https://ascl.net/1909.002)
-[![PyPI version](https://badge.fury.io/py/multicolorfits.svg)](https://badge.fury.io/py/multicolorfits)
+[![PyPI version](https://img.shields.io/pypi/v/multicolorfits.svg)](https://pypi.org/project/multicolorfits/)
 [![Downloads](https://pepy.tech/badge/multicolorfits)](https://pepy.tech/project/multicolorfits)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)

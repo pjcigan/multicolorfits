@@ -39,13 +39,24 @@ black-background math by default (``render_background='auto'``).
 
 ## Reproduce locally
 
-Requires a local Crab HST WFPC2 crop directory (same layers as the README
-splash). With those FITS available:
+The gallery mosaic above is shipped in ``docs/_static/showcase/``.  To explore
+the same looks interactively, point a session at a local Crab HST WFPC2 crop
+(same four layers as the README splash) and try the table’s colors / modes:
 
-```bash
-# Maintainer regenerator (writes stamps + docs/_static/showcase/crab_gallery.png)
-python hidden/make_crab_cutouts.py                 # all recipes + gallery
-python hidden/make_crab_cutouts.py red_orange ember
-# Interactive:
-#   mcf.gui(state='…/crab_red_orange_session.json')
+```python
+import multicolorfits as mcf
+
+s = mcf.McfSession(n_panels=4)
+s.load_files(
+    ['f502n.fits', 'f547m.fits', 'f631n.fits', 'f673n.fits'],
+    colors=['#FF2200', '#FFAA00', '#FFE080', '#FFFFFF'],  # e.g. red_orange
+    labels=['F502N', 'F547M', 'F631N', 'F673N'],
+)
+s.compose.combine_mode = 'rgb'          # or 'lab' / 'hsl' per the table
+s.compose.combine_blend = 'screen'      # lab/hsl: screen / max / …
+s.compose.combine_background = 'black'  # or 'white' for the slide-friendly look
+mcf.gui(s)                              # or: fig = s.plot_combined()
 ```
+
+For a transparent-sky stamp like the gallery cells, use
+``s.export_transparent_cutout(...)`` (see {doc}`m74_transparent_cutout`).
