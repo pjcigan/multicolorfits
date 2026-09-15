@@ -191,8 +191,16 @@ class TestAxisLabelsAndTicks:
         assert ax.coords[0].get_axislabel() == 'RA'
         assert ax.coords[1].get_axislabel() == 'DEC'
         # Titles stay on classic edges so they do not stack on rotated fields.
-        assert 'b' in ''.join(rap.get_axislabel_position()).lower()
-        assert 'l' in ''.join(decp.get_axislabel_position()).lower()
+        # get_axislabel_position() is Astropy 7+; older builds store the same
+        # value on CoordinateHelper._axislabels.
+        def _label_sides(coord):
+            getter = getattr(coord, 'get_axislabel_position', None)
+            if callable(getter):
+                return ''.join(getter()).lower()
+            return ''.join(coord._axislabels.get_visible_axes()).lower()
+
+        assert 'b' in _label_sides(rap)
+        assert 'l' in _label_sides(decp)
 
     def test_tick_direction_inout_does_not_fail(self, loaded_session):
         from matplotlib.backends.backend_agg import FigureCanvasAgg
