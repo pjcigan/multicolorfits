@@ -2,7 +2,9 @@ Getting oriented
 ================
 
 New here — human or AI agent? Start with the runtime helpers, then dig into
-the topic pages.
+the topic pages.  The Sphinx site also has a job-oriented
+:doc:`/capabilities/index` hub (short snippets + Guide / Example / API links)
+that mirrors the recipe catalog below.
 
 .. code-block:: python
 

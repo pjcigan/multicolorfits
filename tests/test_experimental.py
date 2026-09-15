@@ -157,6 +157,12 @@ class TestProvenance:
         assert 'multicolorfits' in hist
         assert 'layer 1' in hist
 
+    def test_annotate_accepts_note_string(self, test_header):
+        hdr = test_header.copy()
+        mcf.annotate_provenance_header(hdr, 'f560w north-up crop')
+        hist = '\n'.join(str(c[1]) for c in hdr.cards if c[0] == 'HISTORY')
+        assert 'f560w north-up crop' in hist
+
     def test_save_combined(self, tmp_path, test_data, test_header):
         combined = mcf.combine_layers([test_data], ['#00FF00'])
         path = str(tmp_path / 'out.fits')

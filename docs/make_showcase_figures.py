@@ -42,10 +42,19 @@ POB_COLORS = ['#BE599E', '#DEA215', '#77C0F9']   # purple / orange / blue
 POB_LABELS = ['IR', 'R', 'B']
 
 
-def _save_pair(render, stem):
-    """render(facecolor, textcolor) -> Figure; saved as _light + _dark."""
+def _save_pair(render, stem, session=None):
+    """render(facecolor, textcolor) -> Figure; saved as _light + _dark.
+
+    Always dual-renders (never chrome-remaps). When *session* is given, set
+    ``compose.facecolor`` / ``tickcolor`` so WCS spines and ticks match the
+    theme instead of staying at the light-canvas defaults.
+    """
     for suffix, face, text in (('light', LIGHT_FACE, 'black'),
                                ('dark', DARK_FACE, DARK_TEXT)):
+        if session is not None:
+            session.compose.facecolor = face
+            # Spines sit on the black sky image — keep them light in both themes.
+            session.compose.tickcolor = '0.9' if suffix == 'light' else DARK_TEXT
         fig = render(face, text)
         path = OUT / f'{stem}_{suffix}.png'
         fig.savefig(path, dpi=110, facecolor=face, bbox_inches='tight')
@@ -92,11 +101,10 @@ def ngc602_figures(datadir):
     rgb_lab = s.render_combined()
 
     def hero(face, _text):
-        s.compose.facecolor = face
         return mcf.make_combined_figure(s, combined=rgb_lab,
                                         figsize=(7.5, 7.5), facecolor=face)
 
-    _save_pair(hero, 'ngc602_hero')
+    _save_pair(hero, 'ngc602_hero', session=s)
 
     # RGB vs Lab on identical colorized layers (downsampled; no WCS chrome).
     small = [mcf.downsample_for_preview(p.data, max_size=1200) for p in s.panels]
@@ -129,14 +137,13 @@ def ngc602_figures(datadir):
     s.compose.show_combo_swatch = False
 
     def mosaic(face, _text):
-        s.compose.facecolor = face
         fig, _axes = mcf.make_component_mosaic(
             s, combined=rgb_lab, components='top', max_per_line=3,
             ticks='plain', facecolor=face,
         )
         return fig
 
-    _save_pair(mosaic, 'ngc602_mosaic')
+    _save_pair(mosaic, 'ngc602_mosaic', session=s)
 
 
 # --------------------------------------------------------------------------- M74

@@ -63,6 +63,11 @@ class TestSkyplothelperIntegration:
         proxy = mcf.overlays.SkyplotHelper()
         assert proxy.add_compass is mcf.overlays.require_overlays().add_compass
 
+    def test_add_compass_default_pad_is_tighter_than_skyplothelper(self):
+        import inspect
+        sig = inspect.signature(mcf.overlays.add_compass)
+        assert sig.parameters['pad'].default == 0.02
+
     def test_add_compass_on_wcs_axes(self, test_header):
         import matplotlib
         matplotlib.use('Agg')

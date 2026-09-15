@@ -78,11 +78,16 @@ class TestPanelLoad:
         r = client.post('/api/panel/9/load', json={'path': 'x'})
         assert r.status_code == 404
 
-    def test_upload(self, client, test_fits_file):
+    def test_upload(self, client, test_fits_file, tmp_path, monkeypatch):
+        # Browser uploads land in ~/.cache/.../uploads; point that at a
+        # writable temp dir so a root-owned home cache cannot fail this test.
+        import multicolorfits.gui_web.server as web_server
+        monkeypatch.setattr(web_server, 'UPLOAD_CACHE_DIR', str(tmp_path / 'uploads'))
         with open(test_fits_file, 'rb') as f:
             r = client.post('/api/panel/1/upload', files={'file': ('synthetic.fits', f, 'application/fits')})
-        assert r.status_code == 200
+        assert r.status_code == 200, r.text
         assert r.json()['loaded'] is True
+        assert (tmp_path / 'uploads' / 'synthetic.fits').is_file()
 
     def test_clear(self, loaded_client):
         r = loaded_client.post('/api/panel/0/clear')

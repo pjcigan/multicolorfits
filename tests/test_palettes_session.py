@@ -136,6 +136,65 @@ class TestColorblindReport:
         assert rep['indices'] == [1, 2]
 
 
+class TestResolveAndPreview:
+    def test_pob_menu_label_has_no_ngc(self):
+        from multicolorfits.palettes import PALETTE_MENU
+        labels = [lab for _, items in PALETTE_MENU for lab, _ in items]
+        pob = [lab for lab in labels if 'POB' in lab.upper()]
+        assert any(lab == 'POB' for lab in pob)
+        assert not any('NGC' in lab for lab in pob)
+
+    def test_resolve_palette_colors_name_and_list(self):
+        assert mcf.resolve_palette_colors('pob', n=3) == get_palette('pob')
+        assert mcf.resolve_palette_colors(['#FF0000'], n=3) == ['#FF0000'] * 3
+
+    def test_palette_colorblind_report_flags_clash(self):
+        rep = mcf.palette_colorblind_report(['#FF0000', '#FF1010'])
+        assert rep['ok'] is False
+        assert any(not info['ok'] for info in rep['kinds'].values())
+
+    def test_preview_palette_returns_figure(self, tmp_path):
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        res = mcf.preview_palette('pob', n=3, mode='lab', blend='screen',
+                                  background='black')
+        assert isinstance(res, mcf.PalettePreview)
+        assert len(res.colors) == 3
+        assert res.fig is not None
+        assert res.fig.number == plt.gcf().number  # pyplot-managed
+        assert res.swatch is not None
+        assert 'deuteranopia' in res.cvd['kinds']
+        out = tmp_path / 'pal.png'
+        res.fig.savefig(str(out), dpi=50, facecolor=res.fig.get_facecolor())
+        assert out.is_file() and out.stat().st_size > 0
+        plt.close(res.fig)
+
+    def test_colors_from_hsv_length(self):
+        cols = mcf.colors_from_hsv(4, saturation=0.8, value=0.9, hue_start=10)
+        assert len(cols) == 4
+        assert all(c.startswith('#') and len(c) == 7 for c in cols)
+
+    def test_preview_palette_cvd_off(self):
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        res = mcf.preview_palette(['#FF0000', '#00FF00'], cvd=False)
+        assert res.cvd['ok'] is True
+        assert len(res.fig.axes) >= 2
+        plt.close(res.fig)
+
+    def test_session_preview_palette(self):
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        s = _session(3)
+        s.apply_palette('pob')
+        s.compose.combine_mode = 'lab'
+        res = s.preview_palette()
+        assert res.colors == get_palette('pob')
+        plt.close(res.fig)
+
 def PanelDefault():
     from multicolorfits.session import PanelState
     return PanelState()

@@ -190,6 +190,9 @@ class TestAxisLabelsAndTicks:
         assert any(str(t).strip() for t in dec_text), 'expected Dec tick labels on rotated field'
         assert ax.coords[0].get_axislabel() == 'RA'
         assert ax.coords[1].get_axislabel() == 'DEC'
+        # Titles stay on classic edges so they do not stack on rotated fields.
+        assert 'b' in ''.join(rap.get_axislabel_position()).lower()
+        assert 'l' in ''.join(decp.get_axislabel_position()).lower()
 
     def test_tick_direction_inout_does_not_fail(self, loaded_session):
         from matplotlib.backends.backend_agg import FigureCanvasAgg

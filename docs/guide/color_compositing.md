@@ -8,7 +8,8 @@ overlapping hues wash out to white.
 
 This page explains the compositing *modes*, which API to call for each, and why
 two different keyword names — **`mode`** and **`colorspace`** — are both
-intentional.
+intentional. Job snippets: {doc}`../capabilities/index`. Recipes:
+`mcf.recipes('lab')`, `mcf.recipes('combine_layers')`.
 
 ---
 

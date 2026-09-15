@@ -79,13 +79,23 @@ def _wcs_tick_direction(direction):
 
 
 def _apply_wcs_axis_titles(ax, xlabel, ylabel, text_color):
-    """Set RA/Dec axis titles on WCS axes (robust for rotated fields)."""
+    """Set RA/Dec axis titles on WCS axes (robust for rotated fields).
+
+    Tick *values* may appear on all four edges (``bltr``) for rotated WCS
+    such as NGC 602.  Axis *titles* stay pinned to bottom / left so ``RA``
+    and ``DEC`` do not stack on the same edge.
+    """
     rapars = ax.coords[0]
     decpars = ax.coords[1]
     rapars.set_auto_axislabel(False)
     decpars.set_auto_axislabel(False)
     rapars.set_axislabel(xlabel, color=text_color, size=11)
     decpars.set_axislabel(ylabel, color=text_color, size=11)
+    try:
+        rapars.set_axislabel_position('b')
+        decpars.set_axislabel_position('l')
+    except (AttributeError, TypeError, ValueError):
+        pass
     rapars.set_axislabel_visibility_rule('always')
     decpars.set_axislabel_visibility_rule('always')
     try:
@@ -442,6 +452,11 @@ def make_combined_figure(session, combined=None, figsize=(7, 7), facecolor='w'):
     """
     Build a standalone matplotlib Figure of the combined WCS plot
     (independent of any GUI canvas; safe with the Agg backend).
+
+    Returns the figure only. The combined axes is ``fig.axes[0]`` (grab it
+    before adding insets). This is not a session panel — ``session.panels``
+    are the input layers. Save with ``fig.savefig``, not ``plt.savefig``.
+    To have the axes handed back, use :func:`setup_combined_axes`.
     """
     from matplotlib.figure import Figure
     fig = Figure(figsize=figsize, facecolor=facecolor)
@@ -632,7 +647,12 @@ def make_component_mosaic(session, combined=None, *, components='top',
     Combined image plus colorized component frames in a shared-WCS mosaic.
 
     Default layout: a full-width **hero** (combined) panel with a strip of
-    smaller single-layer renderings on one side.  The strip is an
+    smaller single-layer renderings on one side.  Each strip panel is the
+    display-ready layer that was fed to the combiner (that panel's stretch,
+    vmin/vmax, color, and display gamma — the same image
+    :meth:`~multicolorfits.session.PanelState.render_display` returns), not a
+    fresh min/max stretch and not the darker pre-display buffer the mixer
+    stores internally.  The strip is an
     :class:`~mpl_toolkits.axes_grid1.ImageGrid` (same approach as
     skyplothelper ``channel_map``): equal square cells, ``axes_pad`` in inches,
     optional shared WCS.  Component lines closest to the hero fill first;
@@ -678,9 +698,14 @@ def make_component_mosaic(session, combined=None, *, components='top',
     Returns
     -------
     fig : matplotlib.figure.Figure
+        Not registered as the pyplot current figure. Save with
+        ``fig.savefig(...)``, not ``plt.savefig`` (that writes a blank canvas).
     axes : dict
-        ``combined`` — hero axes; ``components`` — list of component axes in
-        *show*/active order; ``slots`` — 2D grid of axes or ``None`` matching
+        ``combined`` — hero axes (the composited image). This is not a
+        session panel; ``session.panels`` are the input layers. Add a scale
+        bar, compass, or swatch to ``axes['combined']`` after the call.
+        ``components`` — list of component axes in *show*/active order.
+        ``slots`` — 2D grid of axes or ``None`` matching
         :func:`component_slot_grid`.
     """
     from matplotlib.figure import Figure
@@ -730,8 +755,11 @@ def make_component_mosaic(session, combined=None, *, components='top',
     combined = np.clip(np.nan_to_num(np.asarray(combined)), 0, 1)
     _, _, eff_inverse = session._resolve_background()
     gamma = compose.gamma
+    # Display-ready single layers, not the pre-display colorize buffers.
+    # Those buffers are gamma-encoded for the mixer and imshow as if the
+    # panel were still on its load-time linear min/max stretch.
     component_rgbs = [
-        np.clip(np.nan_to_num(p.render_color_rgb(gamma=gamma, inverse=eff_inverse)), 0, 1)
+        p.render_display(gamma=gamma, inverse=eff_inverse)
         for p in panels
     ]
 

@@ -235,9 +235,9 @@ def annotate_provenance_header(hdr, info=None, version=None):
     ----------
     hdr : astropy.io.fits.header
         Header modified in place.
-    info : dict or None
-        Optional state with ``'panels'`` and ``'compose'`` keys (as from
-        :meth:`McfSession.to_dict`).
+    info : dict, str, or None
+        Optional session state with ``'panels'`` and ``'compose'`` keys (as
+        from :meth:`McfSession.to_dict`), or a short note written as HISTORY.
     version : str or None
         Package version; defaults to ``multicolorfits.__version__``.
     """
@@ -251,7 +251,13 @@ def annotate_provenance_header(hdr, info=None, version=None):
     hdr.add_history('Created with multicolorfits v%s on %s' % (ver, now))
     if not info:
         return hdr
-    compose = info.get('compose', {})
+    if isinstance(info, str):
+        hdr.add_history(info)
+        return hdr
+    if not isinstance(info, dict):
+        hdr.add_history(str(info))
+        return hdr
+    compose = info.get('compose', {}) or {}
     if compose.get('gamma') is not None:
         hdr.add_history('  gamma = %.2f' % float(compose['gamma']))
     if compose.get('combine_mode'):
@@ -291,6 +297,41 @@ def save_rgb_fits(savepath, multicolorRGBdat, commonhdr, overwrite=True, annotat
         _ensure_mcf_provenance(hdr)
     pyfits.writeto(savepath, np.swapaxes(np.swapaxes(multicolorRGBdat, 0, 2), 2, 1),
                    hdr, overwrite=overwrite)
+
+
+def read_fits(path, ext=0, tidy=True):
+    """
+    Read a FITS image and header.
+
+    tidy : bool
+        Run tidy_header on the header (recommended for processing scripts).
+    """
+    from .wcs_tools import tidy_header
+    with pyfits.open(path) as hdul:
+        data = np.array(hdul[ext].data)
+        hdr = hdul[ext].header.copy()
+    if tidy:
+        hdr = tidy_header(hdr)
+    return data, hdr
+
+
+def write_fits(path, data, hdr, overwrite=True, annotate=True, provenance=None):
+    """
+    Write a data array with a copied header.
+
+    Copies BUNIT / beam cards already in ``hdr``. Optionally annotates
+    multicolorfits provenance. ``provenance`` is either a short note (written
+    as HISTORY) or a session dict as accepted by
+    :func:`annotate_provenance_header`. For RGB cubes use save_rgb_fits.
+    """
+    out = hdr.copy()
+    if annotate:
+        if provenance:
+            annotate_provenance_header(out, info=provenance)
+        else:
+            _ensure_mcf_provenance(out)
+    pyfits.writeto(path, np.asarray(data), out, overwrite=overwrite)
+    return out
 
 
 def _ensure_mcf_provenance(hdr):

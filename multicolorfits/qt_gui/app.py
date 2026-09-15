@@ -295,6 +295,9 @@ class PanelWidget(QWidget):
         for label, slot, tip in [
             ('Min/Max', self.on_minmax, 'Reset limits to full data min/max'),
             ('Zscale', self.on_zscale, 'Set limits with the zscale algorithm'),
+            ('Auto levels', self.on_auto_levels,
+             'Suggest a stretch and vmin/vmax from the pixel distribution. '
+             'Starting point only; does not lock the fields.'),
             ('Header', self.edit_header, 'View / edit the FITS header'),
             ('Clear', self.on_clear, 'Clear this panel'),
             ('Remove', self.on_remove, 'Remove this panel tab'),
@@ -488,6 +491,18 @@ class PanelWidget(QWidget):
         self.sync_from_state()
         self.maybe_refresh()
         self.main.show_status('Min/max determined by zscale')
+
+    def on_auto_levels(self):
+        if not self.panel.in_use:
+            return
+        try:
+            rec = self.panel.apply_suggested_levels()
+        except ValueError as exc:
+            QMessageBox.warning(self, 'Auto levels', str(exc))
+            return
+        self.sync_from_state()
+        self.maybe_refresh()
+        self.main.show_status(rec.get('reason') or 'Suggested stretch and limits')
 
     def on_smooth(self, *_):
         if self._updating: return
@@ -1301,6 +1316,11 @@ class MainWindow(QMainWindow):
         ref_combo.setCurrentIndex(active.index(report['reference']))
         lay.addWidget(ref_combo)
 
+        north_chk = QCheckBox('North-up in the target frame')
+        lay.addWidget(north_chk)
+        crop_chk = QCheckBox('Crop to overlap after reproject')
+        lay.addWidget(crop_chk)
+
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText('Align')
         buttons.accepted.connect(dlg.accept)
@@ -1308,13 +1328,16 @@ class MainWindow(QMainWindow):
         lay.addWidget(buttons)
 
         if dlg.exec() == QDialog.Accepted:
-            self.do_align(target_combo.currentData(), ref_combo.currentData())
+            self.do_align(target_combo.currentData(), ref_combo.currentData(),
+                          north_up=north_chk.isChecked(),
+                          crop='overlap' if crop_chk.isChecked() else 'none')
 
-    def do_align(self, target, reference):
+    def do_align(self, target, reference, north_up=False, crop='none'):
         self.show_status('Reprojecting layers\u2026')
         QApplication.processEvents()
         try:
-            result = self.session.align_panels(target=target, reference=reference)
+            result = self.session.align_panels(
+                target=target, reference=reference, north_up=north_up, crop=crop)
         except Exception as exc:
             QMessageBox.warning(self, 'Alignment failed', str(exc))
             self.show_status('Alignment failed')

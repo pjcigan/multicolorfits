@@ -13,7 +13,7 @@ import astropy.io.fits as pyfits
 import astropy.wcs as pywcs
 from astropy.coordinates import SkyCoord
 
-from .wcs_tools import get_cdelts
+from .wcs_tools import get_cdelts, tidy_header
 from .reproject_tools import reproject_image, _require
 
 __all__ = [
@@ -22,6 +22,10 @@ __all__ = [
     'reproject_to_frame',
     'reproject_to_galactic',
     'optimal_common_header',
+    'make_rotated_header',
+    'make_north_up_header',
+    'reproject_to_rotation',
+    'reproject_north_up',
 ]
 
 # frame name -> (CTYPE1 4-char prefix, CTYPE2 4-char prefix)
@@ -269,3 +273,151 @@ def optimal_common_header(images, frame=None, projection='TAN', **kwargs):
     hdrout['NAXIS1'] = int(shape_out[1])
     hdrout['NAXIS2'] = int(shape_out[0])
     return hdrout
+
+
+def _frame_key(hdrin):
+    """Short frame name used by convert_header_frame ('galactic', 'fk5', ...)."""
+    name = header_frame_name(hdrin)
+    if name in ('galactic', 'icrs', 'fk5', 'fk4'):
+        return name
+    if 'ecliptic' in name:
+        return 'ecliptic'
+    return 'fk5'
+
+
+def _copy_nonwcs(hdrout, hdrin):
+    for card in ['BUNIT', 'OBJECT', 'TELESCOP', 'BMAJ', 'BMIN', 'BPA']:
+        if card in hdrin and card not in hdrout:
+            hdrout[card] = hdrin[card]
+    return hdrout
+
+
+def make_rotated_header(hdrin, rotation_deg=0.0, oversample=1.0, fit_footprint=True,
+                        frame='auto', allow_flip=False, warn_flip=True):
+    """
+    Build a 2D header with a chosen on-sky rotation, in the image's own frame.
+
+    ``rotation_deg=0`` (the default) is north-up in that frame: Galactic
+    headers stay Galactic (+b up), equatorial stay equatorial. This does not
+    silently convert to ICRS. Pass ``frame='galactic'`` (etc.) only when you
+    also want a frame change — that path composes with convert_header_frame.
+
+    The output is east-left (negative longitude scale) unless ``allow_flip``
+    is set and the input WCS is mirrored. Pixel scale is
+    ``|CDELT| / oversample``.
+
+    Requires no optional packages (the header only). Resample with
+    reproject_to_rotation / reproject_image.
+    """
+    hdrin = tidy_header(hdrin, warn_flip=warn_flip)
+    src_key = _frame_key(hdrin)
+    want = None if frame in (None, 'auto') else str(frame).lower()
+    if want is not None and want != src_key:
+        hdrin = convert_header_frame(hdrin, frame=want, fit_footprint=fit_footprint)
+        src_key = want
+
+    nx = int(hdrin['NAXIS1'])
+    ny = int(hdrin['NAXIS2'])
+    oversample = float(oversample or 1.0)
+    if oversample <= 0:
+        raise ValueError('oversample must be > 0')
+    cdelt1, cdelt2 = get_cdelts(hdrin)
+    s1 = abs(float(cdelt1)) / oversample
+    s2 = abs(float(cdelt2)) / oversample
+    flipped = False
+    try:
+        from .wcs_tools import wcs_is_flipped
+        flipped = bool(wcs_is_flipped(hdrin))
+    except Exception:
+        flipped = False
+    lon_sign = 1.0 if (allow_flip and flipped) else -1.0
+
+    wcs_in = pywcs.WCS(hdrin).celestial
+    src_frame = header_frame_name(hdrin)
+    cx = (nx - 1) / 2.0
+    cy = (ny - 1) / 2.0
+    center_world = wcs_in.wcs_pix2world([[cx, cy]], 0)[0]
+    c_center = SkyCoord(center_world[0], center_world[1], unit='deg', frame=src_frame)
+    lon0 = float(c_center.spherical.lon.deg)
+    lat0 = float(c_center.spherical.lat.deg)
+    th = np.radians(float(rotation_deg or 0.0))
+
+    if fit_footprint:
+        xs = np.array([0, nx - 1, 0, nx - 1, cx, cx, 0, nx - 1])
+        ys = np.array([0, 0, ny - 1, ny - 1, 0, ny - 1, cy, cy])
+        world = wcs_in.wcs_pix2world(np.column_stack([xs, ys]), 0)
+        c_pts = SkyCoord(world[:, 0], world[:, 1], unit='deg', frame=src_frame)
+        dlon, dlat = c_center.spherical_offsets_to(c_pts)
+        east = np.asarray(dlon.deg, dtype=float)
+        north = np.asarray(dlat.deg, dtype=float)
+        # Rotate offsets so +y is north rotated by rotation_deg (CCW, CROTA2 sense).
+        east_r = east * np.cos(th) + north * np.sin(th)
+        north_r = -east * np.sin(th) + north * np.cos(th)
+        half_x = float(np.max(np.abs(east_r)))
+        half_y = float(np.max(np.abs(north_r)))
+        nx_new = max(nx, 2 * int(np.ceil(half_x / s1)) + 1)
+        ny_new = max(ny, 2 * int(np.ceil(half_y / s2)) + 1)
+    else:
+        nx_new, ny_new = nx, ny
+
+    projection = _projection_from_header(hdrin)
+    ctype1_prefix, ctype2_prefix = _FRAME_CTYPES[src_key]
+    wcs_out = pywcs.WCS(naxis=2)
+    wcs_out.wcs.crpix = [(nx_new + 1) / 2.0, (ny_new + 1) / 2.0]
+    wcs_out.wcs.crval = [lon0, lat0]
+    wcs_out.wcs.cdelt = [lon_sign * s1, s2]
+    wcs_out.wcs.ctype = ['%s-%s' % (ctype1_prefix, projection),
+                         '%s-%s' % (ctype2_prefix, projection)]
+    if abs(th) > 1e-12:
+        # CROTA2-style PC: latitude axis rotated from +y by rotation_deg.
+        c, s = np.cos(th), np.sin(th)
+        wcs_out.wcs.pc = [[c, s], [-s, c]]
+    if src_key in ('icrs', 'fk5', 'fk4'):
+        wcs_out.wcs.radesys = src_key.upper()
+        if src_key == 'fk5':
+            wcs_out.wcs.equinox = 2000.0
+        elif src_key == 'fk4':
+            wcs_out.wcs.equinox = 1950.0
+
+    hdrout = wcs_out.to_header()
+    hdrout['NAXIS'] = 2
+    hdrout['NAXIS1'] = int(nx_new)
+    hdrout['NAXIS2'] = int(ny_new)
+    return _copy_nonwcs(hdrout, hdrin)
+
+
+def make_north_up_header(hdrin, **kwargs):
+    """Alias for make_rotated_header(..., rotation_deg=0)."""
+    kwargs = dict(kwargs)
+    kwargs['rotation_deg'] = 0.0
+    return make_rotated_header(hdrin, **kwargs)
+
+
+def reproject_to_rotation(datain, hdrin, rotation_deg=0.0, oversample=1.0,
+                          fit_footprint=True, frame='auto', allow_flip=False,
+                          method='interp', order=1, scale=False,
+                          returnfootprint=False):
+    """
+    Reproject an image onto a rotated (default: north-up) grid in its own frame.
+
+    See make_rotated_header. ``order`` is the reproject_interp spline order;
+    ``method='exact'`` (or ``order=0``) uses reproject_exact. Requires the
+    optional reproject extra.
+
+    Returns (data, header) or (data, header, footprint).
+    """
+    hdrto = make_rotated_header(
+        hdrin, rotation_deg=rotation_deg, oversample=oversample,
+        fit_footprint=fit_footprint, frame=frame, allow_flip=allow_flip)
+    result = reproject_image(datain, hdrin, hdrto, scale=scale, method=method,
+                             order=order, returnfootprint=returnfootprint)
+    if returnfootprint:
+        return result[0], hdrto, result[1]
+    return result, hdrto
+
+
+def reproject_north_up(datain, hdrin, **kwargs):
+    """Alias for reproject_to_rotation(..., rotation_deg=0)."""
+    kwargs = dict(kwargs)
+    kwargs['rotation_deg'] = 0.0
+    return reproject_to_rotation(datain, hdrin, **kwargs)

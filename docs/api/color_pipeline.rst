@@ -16,6 +16,9 @@ Stretch & rescale
 
    rescale_image
    zscale_limits
+   suggest_levels
+   describe_image
+   describe_images
    make_norm
    adjust_gamma
    stretch_functions
@@ -30,6 +33,20 @@ ANSI stdout bar (used by :func:`~multicolorfits.reproject_cube` when
 `tqdm <https://tqdm.github.io/>`_ directly — see the function docstring
 for a side-by-side example.  Multicolorfits does not depend on or wrap
 tqdm.
+
+:func:`~multicolorfits.suggest_levels` recommends a starting stretch and
+absolute vmin/vmax from the pixel histogram. It is not a finished display:
+a single stretch cannot show faint structure and bright peaks across many
+decades. The returned ``reason`` states the rule that fired (negative
+pixels, background on the floor, decade span, or a thin bright tail).
+:func:`~multicolorfits.describe_image` returns that suggestion after an
+optional header summary and prints both by default (``verbose=False`` to
+keep the dict quiet). :func:`~multicolorfits.describe_images` does the
+same for a set of layers and adds suggested colors plus parallel lists
+for ``load_files`` / ``set_display``. The full rules are in the function
+docstring and in :doc:`/guide/intensity_scaling`. The GUI **Auto levels**
+button applies the same suggestion and leaves the fields editable.
+**Zscale** still sets limits only.
 
 Colorize
 --------

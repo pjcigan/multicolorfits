@@ -32,12 +32,13 @@ gui
 :link: getting_oriented
 :link-type: doc
 `mcf.overview()` / `mcf.recipes()` and the generated `llms.txt` corpus.
+Job map: {doc}`../capabilities/index`.
 :::
 
 :::{grid-item-card} Color pipeline
 :link: color_pipeline
 :link-type: doc
-`to_grey_rgb`, `colorize_image`, `combine_multicolor`, stretching helpers.
+`to_grey_rgb`, `colorize_image`, `combine_multicolor`, `describe_images`.
 :::
 
 :::{grid-item-card} Compositing
@@ -67,13 +68,13 @@ Combined WCS figures, component mosaics, bare/publication styling.
 :::{grid-item-card} Palettes
 :link: palettes
 :link-type: doc
-Curated palettes, hue patterns, color-vision checks.
+Curated palettes, LCh / HSV generators, `preview_palette`, color-vision checks.
 :::
 
 :::{grid-item-card} Overlays
 :link: overlays
 :link-type: doc
-Optional compass / beam / scale bar (`[overlays]` / skyplothelper).
+Optional compass / beam / scale bar. Guide: {doc}`../guide/overlays`.
 :::
 
 :::{grid-item-card} High-level pipeline

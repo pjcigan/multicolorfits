@@ -24,12 +24,17 @@ from .core.colorize import hex_to_rgb, rgb_to_hex
 from .core.colormix import simulate_colorblindness
 
 __all__ = [
-    'PALETTES', 'HUE_PATTERNS', 'PALETTE_MENU',
+    'PALETTES', 'HUE_PATTERNS', 'PALETTE_MENU', 'CVD_KINDS',
     'list_palettes', 'list_hue_patterns', 'list_palette_menu',
     'get_palette', 'suggest_colors', 'colors_from_hue_angles',
-    'colors_for_hue_pattern', 'hex_to_lch', 'rotate_colors_from_base',
-    'check_palette_colorblind', 'is_palette_name',
+    'colors_from_hsv', 'colors_for_hue_pattern', 'hex_to_lch',
+    'rotate_colors_from_base',
+    'check_palette_colorblind', 'palette_colorblind_report',
+    'resolve_palette_colors', 'is_palette_name',
 ]
+
+# CVD types checked by palette_colorblind_report / session reports, in order.
+CVD_KINDS = ('deuteranopia', 'protanopia', 'tritanopia')
 
 
 # ------------------------------------------------------------------ static palettes
@@ -41,7 +46,7 @@ PALETTES = {
     'ryb': ['#C11B17', '#EAC117', '#2B65EC'],
     # Red-yellow-blue-purple (as in the m101_RYBP example image)
     'rybp': ['#C11B17', '#EAC117', '#4677F0', '#B048B5'],
-    # Purple-orange-blue (the NGC 602 example in the docs)
+    # Purple-orange-blue (published multicolorfits examples)
     'pob': ['#BE599E', '#DEA215', '#77C0F9'],
     # Warm sequence for 2-4 layers of similar emission
     'warm': ['#7D0541', '#C11B17', '#E8862C', '#EAC117'],
@@ -86,7 +91,7 @@ PALETTE_MENU = [
         ('RGB primaries', 'rgb'),
         ('RYB paint', 'ryb'),
         ('RYBP', 'rybp'),
-        ('POB (NGC 602)', 'pob'),
+        ('POB', 'pob'),
         ('Warm sequence', 'warm'),
         ('Cool sequence', 'cool'),
         ('Teal / orange', 'tealorange'),
@@ -216,6 +221,7 @@ def suggest_colors(n, lightness=65., chroma=55., hue_start=25.):
     Generate n perceptually evenly-spaced colors: equally spaced hue angles
     on a constant-lightness, constant-chroma ring in CIE LCh space.
 
+    This is what the GUI **Palette → Even (auto-N) / Perceptual** entry uses.
     Because the spacing is perceptual (unlike naive HSV hue stepping), the
     colors remain distinct for any n, and equal lightness means no layer
     visually dominates.
@@ -236,11 +242,55 @@ def suggest_colors(n, lightness=65., chroma=55., hue_start=25.):
     -------
     list of str
         Hex color strings.
+
+    See Also
+    --------
+    colors_from_hue_angles, colors_for_hue_pattern, colors_from_hsv,
+    preview_palette
     """
     if n < 1:
         raise ValueError('n must be >= 1')
     angles = hue_start + np.arange(n) * 360. / n
     return colors_from_hue_angles(angles, rotation=0., lightness=lightness, chroma=chroma)
+
+
+def colors_from_hsv(n, saturation=0.85, value=0.90, hue_start=0.):
+    """
+    Generate *n* colors with evenly spaced **HSV** hues (classical color wheel).
+
+    Prefer :func:`suggest_colors` (CIE LCh) for most scientific composites —
+    HSV steps are not perceptually even (yellows look brighter than blues at
+    the same V). Use this when you explicitly want a textbook HSV ramp.
+
+    Parameters
+    ----------
+    n : int
+        Number of colors.
+    saturation, value : float
+        HSV S and V in ``[0, 1]``.
+    hue_start : float
+        First hue in degrees (0–360).
+
+    Returns
+    -------
+    list of str
+        Hex color strings.
+
+    Notes
+    -----
+    This is **not** the same as ``compose.combine_mode = 'hsv'``, which
+    controls how already-chosen layer colors are *mixed* in the composite.
+    """
+    if n < 1:
+        raise ValueError('n must be >= 1')
+    from .core.colorize import hsv_to_rgb as _hsv_to_rgb
+    hues = (float(hue_start) + np.arange(n) * (360.0 / n)) % 360.0
+    hsv = np.zeros((n, 3), dtype=float)
+    hsv[:, 0] = hues / 360.0
+    hsv[:, 1] = float(saturation)
+    hsv[:, 2] = float(value)
+    rgb = np.clip(_hsv_to_rgb(hsv.reshape(1, n, 3))[0], 0, 1)
+    return [rgb_to_hex(tuple(int(round(v * 255)) for v in c)).upper() for c in rgb]
 
 
 def colors_for_hue_pattern(pattern, n, rotation=0., lightness=65., chroma=55.):
@@ -292,6 +342,68 @@ def rotate_colors_from_base(base_hex_colors, delta_deg):
     return [_lch_to_hex(L, C, (new_h0 + off) % 360.) for (L, C, _), off in zip(lchs, offsets)]
 
 
+def resolve_palette_colors(name_or_colors, n=None):
+    """
+    Resolve a palette name or hex list to ``n`` hex colors.
+
+    Same rules as :meth:`~multicolorfits.McfSession.palette_colors_for`:
+    ``'perceptual'`` / ``'suggest'`` / ``'auto'`` use :func:`suggest_colors`;
+    hue-pattern names use :func:`colors_for_hue_pattern`; curated names use
+    :func:`get_palette`, padded with perceptual suggestions when shorter than
+    *n*. A sequence of hex strings is returned as-is (truncated or rejected
+    if *n* is set and the length does not match, except a single color
+    broadcasts).
+
+    Parameters
+    ----------
+    name_or_colors : str or sequence of str
+        Palette / pattern name, or an explicit hex list.
+    n : int or None
+        Desired length. Required when *name_or_colors* is a name. For an
+        explicit list, defaults to ``len(colors)``.
+
+    Returns
+    -------
+    list of str
+        Hex color strings.
+    """
+    if isinstance(name_or_colors, (str, bytes)):
+        name = str(name_or_colors)
+        if n is None:
+            if name in ('perceptual', 'suggest', 'auto', 'even'):
+                raise ValueError('n is required for perceptual / suggest / auto / even')
+            if name in _PATTERN_ANGLES:
+                n = len(_PATTERN_ANGLES[name])
+            else:
+                n = len(get_palette(name))
+        n = int(n)
+        if n < 1:
+            return []
+        if name in ('perceptual', 'suggest', 'auto'):
+            return suggest_colors(n)
+        if name in ('complement', 'triad', 'split', 'square', 'analogous', 'even'):
+            return colors_for_hue_pattern(name, n)
+        avail = get_palette(name)
+        if len(avail) >= n:
+            return list(avail[:n])
+        return list(avail) + suggest_colors(n)[len(avail):]
+
+    colors = [str(c) for c in list(name_or_colors)]
+    if not colors:
+        return []
+    if n is None:
+        return colors
+    n = int(n)
+    if n < 1:
+        return []
+    if len(colors) == 1 and n != 1:
+        return colors * n
+    if len(colors) != n:
+        raise ValueError('colors has %d entries; expected %d or 1'
+                         % (len(colors), n))
+    return colors
+
+
 def check_palette_colorblind(hex_colors, kind='deuteranopia', min_distance=25.):
     """
     Check whether a palette's colors remain distinguishable under a color
@@ -323,6 +435,41 @@ def check_palette_colorblind(hex_colors, kind='deuteranopia', min_distance=25.):
             if dist < min_distance:
                 failures.append((i, j, dist))
     return (len(failures) == 0), failures
+
+
+def palette_colorblind_report(hex_colors, kinds=None, min_distance=25.):
+    """
+    Multi-kind CVD report for a hex list (no session required).
+
+    Parameters
+    ----------
+    hex_colors : sequence of str
+    kinds : sequence of str or None
+        Defaults to :data:`CVD_KINDS` (deuteranopia, protanopia, tritanopia).
+    min_distance : float
+        Passed to :func:`check_palette_colorblind`.
+
+    Returns
+    -------
+    dict
+        ``ok`` (bool), ``colors`` (list), ``kinds`` mapping each kind to
+        ``{'ok': bool, 'failures': [(i, j, dE), ...]}`` with 0-based indices.
+    """
+    colors = [str(c) for c in list(hex_colors)]
+    kind_list = tuple(kinds) if kinds is not None else CVD_KINDS
+    report = {'ok': True, 'colors': colors, 'kinds': {}}
+    if len(colors) < 2:
+        for kind in kind_list:
+            report['kinds'][kind] = {'ok': True, 'failures': []}
+        return report
+    for kind in kind_list:
+        ok, failures = check_palette_colorblind(
+            colors, kind=kind, min_distance=min_distance)
+        mapped = [(int(a), int(b), round(float(d), 1)) for a, b, d in failures]
+        report['kinds'][kind] = {'ok': ok, 'failures': mapped}
+        if not ok:
+            report['ok'] = False
+    return report
 
 
 _init_generated_palettes()

@@ -8,6 +8,7 @@ sd_hide_title: true
 :hidden:
 
 installation
+capabilities/index
 guide/index
 tutorials/index
 examples/index
@@ -32,10 +33,10 @@ compositing, and finish publication figures — from scripts or the browser /
 desktop GUI.
 
 ```{tip}
-**Human or AI agent?** Start with ``import multicolorfits as mcf;
-mcf.overview()`` for the mental model and conventions, then
-``mcf.recipes('<keyword>')`` for copy-paste code.  The same catalog is
-served at the site root as <a href="llms.txt"><code>llms.txt</code></a> /
+**Human or AI agent?** Browse {doc}`capabilities/index` for job-oriented
+snippets, or start with ``import multicolorfits as mcf; mcf.overview()``
+and ``mcf.recipes('<keyword>')``.  The same catalog is served at the site
+root as <a href="llms.txt"><code>llms.txt</code></a> /
 <a href="llms-full.txt"><code>llms-full.txt</code></a> (generated from
 ``multicolorfits/_overview.py`` — see {doc}`api/getting_oriented`).
 ```
@@ -65,12 +66,20 @@ rgb = s.render_combined()
 à la carte.
 :::
 
+:::{grid-item-card} {octicon}`apps` Capabilities
+:link: capabilities/index
+:link-type: doc
+
+Job-oriented map — mosaics, overlays, Auto levels, GUIs, cutouts — with
+starter snippets and links into the Guide / Examples / recipes.
+:::
+
 :::{grid-item-card} {octicon}`book` User guide
 :link: guide/index
 :link-type: doc
 
-Compositing modes, intensity scaling, the session model, saving outputs, and
-component mosaics.
+Compositing modes, intensity scaling, the session model, preparing images,
+overlays, and component mosaics.
 :::
 
 :::{grid-item-card} {octicon}`mortar-board` Tutorials

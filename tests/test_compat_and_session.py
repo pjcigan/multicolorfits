@@ -67,7 +67,7 @@ class TestCompat:
         assert set(mcf.scaling_fns.keys()) == {'linear', 'sqrt', 'squared', 'log', 'power', 'sinh', 'asinh'}
 
     def test_version(self):
-        assert mcf.__version__ == '3.0.0'
+        assert mcf.__version__ == '3.1.0'
 
 
 class TestLegacyAliases:

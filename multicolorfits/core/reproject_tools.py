@@ -27,7 +27,7 @@ def _require(module_name, extra_hint):
         ) from exc
 
 
-def reproject_image(mapin, hdrfrom, hdrto, scale=False, method='interp',
+def reproject_image(mapin, hdrfrom, hdrto, scale=False, method='interp', order=1,
                 interpdict={'order': 1, 'mode': 'constant', 'cval': np.nan},
                 returnfootprint=False, parallel=True):
     """
@@ -45,7 +45,12 @@ def reproject_image(mapin, hdrfrom, hdrto, scale=False, method='interp',
         True if units are Flux [W/m^2, Jy, or similar].  False for brightness [W/m^2/sr, Jy/sr, or similar]
         --> Note that when convolving maps in beam units [e.g., Jy/beam], the reprojection will need scale=True because the beam sizes change.
     method : str
-        One of 'kapteyn' (kapteyn package, interpolation), 'interp' (reproject package), or 'spi' (reproject package, spherical polygon intersection).  Drizzle not yet implemented
+        One of 'interp' (reproject, spline order ``order``), 'exact' / 'spi'
+        (reproject spherical-polygon intersection), or 'kapteyn'.
+        ``order=0`` also selects the exact method.
+    order : int
+        Spline order for ``method='interp'`` (1 bilinear, 3 cubic). Ignored
+        for exact / kapteyn.
     interpdict : dict
         For method='kapteyn'. Sets the interpol_dict (interpolation). interpdict={order:<>,mode:<>,cval:<>}
         --> order = spline order, 0 to 5; mode='constant','nearest','reflect','wrap'; cval = value outside bounds (NaN)
@@ -65,9 +70,12 @@ def reproject_image(mapin, hdrfrom, hdrto, scale=False, method='interp',
         mapin_brightness = mapin.copy() / sterad_per_pixel(hdrfrom)
     else:
         mapin_brightness = mapin.copy()
+    if method in ('exact', 'spi') or (method == 'interp' and int(order or 0) == 0):
+        method = 'spi'
     if method == 'interp':
         reproject = _require('reproject', "pip install reproject  (or pip install multicolorfits[reproject])")
-        map_reproj, map_footprint = reproject.reproject_interp((mapin_brightness, hdrfrom), hdrto)
+        map_reproj, map_footprint = reproject.reproject_interp(
+            (mapin_brightness, hdrfrom), hdrto, order=int(order))
     elif method == 'spi':
         reproject = _require('reproject', "pip install reproject  (or pip install multicolorfits[reproject])")
         map_reproj, map_footprint = reproject.reproject_exact((mapin_brightness, hdrfrom), hdrto, parallel=parallel)

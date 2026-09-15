@@ -17,11 +17,12 @@ switcher reads `_static/switcher.json`.
 
 | Tree | Contents |
 |------|----------|
-| `guide/` | Conceptual MyST pages (compositing, session, save, mosaics) |
+| `capabilities/` | Thin job-oriented hub (snippets + links; no feature-gallery codegen) |
+| `guide/` | Conceptual MyST pages (compositing, session, save, mosaics, overlays) |
 | `tutorials/` | Jupytext percent `.py` ↔ `.ipynb` (nbsphinx) plus GUI markdown |
 | `examples/` | Worked narratives (NGC 602, WLM, color-space suite) + gallery |
 | `api/` | Autosummary reference grouped by topic (`api/generated/` is build output) |
-| `_static/compositing/`, `mosaics/`, `gui/`, `examples/` | Light/dark pairs + classic result images |
+| `_static/compositing/`, `mosaics/`, `gui/`, `examples/`, `showcase/` | Light/dark pairs + classic result images |
 
 Author notebooks as jupytext sources, then sync:
 

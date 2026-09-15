@@ -14,6 +14,9 @@ from .scaling import (
     make_norm,
     rescale_image,
     zscale_limits,
+    suggest_levels,
+    describe_image,
+    describe_images,
 )
 from .wcs_tools import (
     force_header_2d,
@@ -42,6 +45,12 @@ from .wcs_tools import (
     crop_cube,
     crop_image_sky,
     crop_cube_sky,
+    tidy_header,
+    wcs_is_flipped,
+    east_increases_right,
+    describe_header,
+    blank_missing,
+    crop_to_overlap,
 )
 from .mcfheader import (
     McfHeader,
@@ -72,6 +81,8 @@ from .io_output import (
     compare_multicolor_vs_rgb,
     save_rgb_fits,
     annotate_provenance_header,
+    read_fits,
+    write_fits,
 )
 # Experimental additions (see module docstrings)
 from .colormix import (
@@ -90,12 +101,24 @@ from .skyframes import (
     reproject_to_frame,
     reproject_to_galactic,
     optimal_common_header,
+    make_rotated_header,
+    make_north_up_header,
+    reproject_to_rotation,
+    reproject_north_up,
 )
 from .stack_tools import (
     reproject_stack_to_header,
     reproject_stack_to_reference,
     align_stack,
     downsample_for_preview,
+    prep_layers,
+)
+from .beams import (
+    convolution_beam,
+    match_beam,
+    match_beam_to_header,
+    convolve2Dgaus,
+    convolve2Dgaus_matchhdr,
 )
 from .paintmix import (
     rgb_to_ryb,

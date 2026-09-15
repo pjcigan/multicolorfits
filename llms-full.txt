@@ -1,6 +1,6 @@
 # multicolorfits
 
-> Colorize and combine any number of FITS image layers into publication-quality multicolor astronomy figures (Python, v3.0.0). In a session, `import multicolorfits as mcf; mcf.overview()` prints the orientation below and `mcf.recipes('<keyword>')` prints these recipes.
+> Colorize and combine any number of FITS image layers into publication-quality multicolor astronomy figures (Python, v3.1.0). In a session, `import multicolorfits as mcf; mcf.overview()` prints the orientation below and `mcf.recipes('<keyword>')` prints these recipes.
 
 ## The colorize-then-combine model
 
@@ -94,7 +94,28 @@ grey = mcf.to_grey_rgb(data, rescalefn='sqrt', scaletype='perc', min_max=[1, 99.
 # zscale (IRAF-style) limits for a raw array:
 vmin, vmax = mcf.zscale_limits(data)
 ```
-*Adjust:* rescalefn: 'linear','sqrt','squared','log','asinh','sinh','power'. scaletype: 'abs' (data units) or 'perc' (percentiles).
+*Adjust:* rescalefn: 'linear','sqrt','squared','log','asinh','sinh','power'. scaletype: 'abs' (data units) or 'perc' (percentiles). suggest_levels is a starting stretch and vmin/vmax from the histogram.
+
+**Suggest a starting stretch and limits**
+
+```python
+import multicolorfits as mcf
+
+# Starting point only — not a finished display of a huge dynamic range.
+rec = mcf.suggest_levels(data)
+print(rec['stretch'], rec['reason'])
+grey = mcf.to_grey_rgb(
+    data, rescalefn=rec['stretch'], scaletype='abs',
+    min_max=[rec['vmin'], rec['vmax']])
+
+# Several layers → colors + stretches for the session (quiet by default):
+report = mcf.describe_images(
+    {'R': (data_r, header), 'G': (data_g, header), 'B': (data_b, header)})
+# s.load_files(paths, colors=report['colors'], labels=report['names'],
+#              stretches=report['stretches'],
+#              vmins=report['vmins'], vmaxs=report['vmaxs'])
+```
+*Adjust:* linear / sqrt / asinh only. log is never chosen. describe_image(data, header, verbose=False) keeps the dict quiet. GUI: Auto levels. Session: s.apply_suggested_levels().
 
 ### colorspaces
 
@@ -106,8 +127,11 @@ import multicolorfits as mcf
 # layers: list of colorized (ny,nx,3) layers from colorize_image()
 rgb = mcf.combine_multicolor_colorspace(
     layers, colorspace='lab', blend='screen', gamma=2.2)
+# Same dispatcher the GUI / session use (mode + blend + background):
+rgb = mcf.combine_colorized_layers(
+    layers, mode='lab', blend='screen', background='black', gamma=2.2)
 ```
-*Adjust:* colorspace='lab' is well-tested and keeps hues from washing out; blend='screen'|'max'|'sum'. 'hsv'/'hsl' spaces are experimental.
+*Adjust:* colorspace='lab' (or mode='lab') is well-tested and keeps hues from washing out; blend='screen'|'max'|'sum'. 'hsv'/'hsl' spaces are experimental.
 
 ### backgrounds
 
@@ -143,14 +167,13 @@ s = mcf.McfSession(n_panels=3)
 s.load_files([fits_r, fits_g, fits_b],
              colors=['#E4002B', '#33CC33', '#0088FF'],
              labels=['R', 'G', 'B'])
-for p in s.panels:
-    p.stretch = 'asinh'
-    p.set_percentiles(1, 99.5)
+s.apply_suggested_levels()          # histogram starting point
+# s.set_display(stretches='asinh', vmins=0.1, vmaxs=12)
 s.compose.combine_mode = 'rgb'      # or 'lab'
 s.compose.gamma = 2.2
 rgb = s.render_combined()
 ```
-*Adjust:* set_data(array, header) instead of load_files for in-memory arrays. s.compose.combine_background = 'black'|'white'.
+*Adjust:* set_data(array, header) instead of load_files for in-memory arrays. describe_images({name: (data, hdr)}) returns colors + stretches for load_files. set_display(stretches=, vmins=, vmaxs=) sets known values; a scalar broadcasts. apply_suggested_levels() is Auto levels on every loaded panel. s.compose.combine_background = 'black'|'white'.
 
 **Save and reload a session (JSON)**
 
@@ -162,7 +185,50 @@ s2 = mcf.McfSession()
 s2.load_state('my_session.json')
 rgb = s2.render_combined()
 ```
-*Adjust:* s.export_script() emits a standalone Python script that recreates the current image with the plain pipeline API.
+*Adjust:* For a standalone recreate script see the export_script recipe.
+
+**Export a standalone recreate script**
+
+```python
+import multicolorfits as mcf
+
+script = s.export_script()               # plain pipeline API, no GUI deps
+open('recreate.py', 'w').write(script)
+```
+*Adjust:* Replays stretch/colorize/combine (and reproject when panels were aligned) so a colleague can reproduce the image without the session JSON.
+
+**Align session panels onto a common grid**
+
+```python
+import multicolorfits as mcf
+
+# Needs the 'reproject' extra:  pip install multicolorfits[reproject]
+report = s.align_panels(target='reference', north_up=True, crop='overlap')
+print(report.get('message', report))
+rgb = s.render_combined()
+```
+*Adjust:* target='reference' uses the reference panel's grid; target='galactic' (etc.) builds the common grid in that frame. Scripting counterpart: align_stack / prep_layers.
+
+### gui
+
+**Launch the browser, Qt, or notebook GUI**
+
+```python
+import multicolorfits as mcf
+
+# Pre-load a session, then hand it to a GUI (interactive — leave commented
+# in batch scripts / CI):
+s = mcf.McfSession(n_panels=3)
+s.load_files([fits_r, fits_g, fits_b],
+             colors=['#E4002B', '#33CC33', '#0088FF'],
+             labels=['R', 'G', 'B'])
+# mcf.gui(session=s)                 # browser — pip install multicolorfits[web]
+# mcf.gui_embed(session=s, height=900)
+# mcf.gui_qt(session=s)              # desktop — pip install multicolorfits[qt]
+# mcf.gui(files=[fits_r, fits_g, fits_b], colors=['#E4002B', '#33CC33', '#0088FF'])
+assert len(s.active_panels()) == 3
+```
+*Adjust:* CLI: mcf-web / mcf-qt. start_gui_server(session=s) returns a non-blocking GuiServer with .url for automation.
 
 ### cutouts
 
@@ -215,7 +281,39 @@ aligned = mcf.align_stack(
     reference=0)
 data_list = [d for d, hdr in aligned]
 ```
-*Adjust:* reproject_image(data, header_from, header_to) reprojects one array. optimal=True finds a common grid covering all inputs.
+*Adjust:* reproject_image(data, header_from, header_to) reprojects one array. optimal=True finds a common grid covering all inputs. prep_layers also does north-up, oversample, and overlap crop.
+
+**North-up a rotated image, then crop the overlap**
+
+```python
+import multicolorfits as mcf
+
+# read_fits(path) applies tidy_header by default. Here the arrays are already in hand.
+hdr = mcf.tidy_header(header)
+mcf.describe_header(hdr, name='layer')
+# rotation_deg=0 is north-up in the header's own frame (Galactic stays Galactic).
+north, hdr_n = mcf.reproject_north_up(data, hdr, oversample=2, order=1)
+prepared = mcf.prep_layers(
+    [(data, hdr), (data_g, header)],
+    north_up=True, oversample=2, crop='overlap')
+```
+*Adjust:* read_fits(path) is the file equivalent of the tidy step. Needs the reproject extra. order=1..3 is reproject_interp; method='exact' (or order=0) is reproject_exact. For beam matching see the match_beam recipe.
+
+**Match an image to a coarser beam**
+
+```python
+import multicolorfits as mcf
+
+# FWHM arcsec. Pass *_from explicitly when the header has no BMAJ/BMIN.
+smoothed, hdr_out = mcf.match_beam(
+    data, header,
+    bmaj_to_asec=12.0, bmin_to_asec=12.0, bpa_to_deg=0.0,
+    bmaj_from_asec=5.0, bmin_from_asec=5.0, bpa_from_deg=0.0,
+    per_beam=False)
+# Or match to another header's BMAJ/BMIN/BPA:
+# smoothed, hdr_out = mcf.match_beam_to_header(data, header, hdr_target)
+```
+*Adjust:* per_beam=True scales by beam-area ratio (typical for Jy/beam). prep_layers can also accept matched layers you prepare first.
 
 ### figures
 
@@ -229,7 +327,20 @@ s.compose.show_combo_swatch = True
 fig = mcf.make_combined_figure(s, figsize=(7, 7))
 fig.savefig('figure.png', dpi=150, facecolor=fig.get_facecolor())
 ```
-*Adjust:* make_component_mosaic(s) adds a strip of the individual colorized bands beside the combined hero image.
+*Adjust:* The combined axes is fig.axes[0] (not a session panel). For a hero + component strip see the mosaic recipe.
+
+**Component mosaic (hero + colorized strip)**
+
+```python
+import multicolorfits as mcf
+
+fig, axes = mcf.make_component_mosaic(
+    s, components='top', max_per_line=3, ticks='plain')
+ax = axes['combined']            # hero RGB
+# strip = axes['components']
+fig.savefig('mosaic.png', dpi=150, facecolor=fig.get_facecolor())
+```
+*Adjust:* Strip panels use the same stretch/limits/gamma as the combiner inputs. overlays='hero' (default) draws compose-flag overlays on the hero only. s.plot_component_mosaic(**kwargs) is the session wrap.
 
 **Bare, image-only figure (press-release style)**
 
@@ -255,8 +366,12 @@ if mcf.overlays_available():
     s.compose.show_scale_bar = True
     s.compose.scale_bar_asec = 30.0     # arcsec
     fig = mcf.make_combined_figure(s, figsize=(7, 7))
+    # After the fact on an existing axes:
+    # mcf.overlays.add_scale_bar(fig.axes[0], s.common_header, length_asec=30)
+    # mcf.overlays.apply_overlays(fig.axes[0], s.common_header,
+    #                             compass=True, scale_bar=True)
 ```
-*Adjust:* Beam needs BMAJ/BMIN in the header (s.compose.show_beam = True). Overlays require skyplothelper.
+*Adjust:* Beam needs BMAJ/BMIN in the header (s.compose.show_beam = True). The combined axes is not a session panel: mosaic axes['combined'], or fig.axes[0] after make_combined_figure. Post-hoc helpers: mcf.overlays.add_compass / add_beam / add_scale_bar / apply_overlays. Overlays require skyplothelper.
 
 ### palettes
 
@@ -264,12 +379,20 @@ if mcf.overlays_available():
 
 ```python
 import multicolorfits as mcf
+import matplotlib.pyplot as plt
 
-colors = mcf.suggest_colors(3)          # vetted, distinguishable hexes
-print(mcf.list_palettes())              # named palettes
+colors = mcf.suggest_colors(3)          # CIE LCh auto-N (GUI Even / perceptual)
+# colors = mcf.colors_for_hue_pattern('triad', n=3)
+# colors = mcf.colors_from_hsv(3)       # classical HSV wheel (not perceptual)
+print(mcf.list_palettes())              # named curated palettes
 pal = mcf.get_palette('pob', n=3)       # e.g. purple/orange/blue
+res = mcf.preview_palette(colors, mode='lab', blend='screen',
+                          background='black')
+# plt.show()   # works — preview_palette uses pyplot.figure
+res.fig.savefig('palette_preview.png', dpi=120,
+                facecolor=res.fig.get_facecolor())
 ```
-*Adjust:* McfSession.colorblind_report() flags clashing layer colors; McfSession.apply_palette(name) recolors all panels.
+*Adjust:* McfSession.colorblind_report() flags clashing layer colors; McfSession.apply_palette(name) recolors all panels. preview_palette shows tiles + combo swatch + CVD; mode/blend are compositing settings for the swatch, not the color generator. s.preview_palette() uses session colors. Guide: docs/guide/palettes.
 
 ### output
 
@@ -279,6 +402,8 @@ pal = mcf.get_palette('pob', n=3)       # e.g. purple/orange/blue
 import multicolorfits as mcf
 
 mcf.save_rgb_fits('combined_rgb.fits', combined, header)
+# Provenance HISTORY cards from a session:
+mcf.save_combined('combined_rgb.fits', combined, header, session_info=s)
 # or from a session (keeps WCS + provenance):
 s.save_rgb_fits('combined_rgb.fits')
 ```
@@ -293,23 +418,42 @@ def combine_layers(data_list, colors, stretches=None, min_maxes=None, colorspace
 def combine_from_files(fits_paths, colors, align_reference=0, align_frame=None, align_optimal=False, **combine_kwargs)
 def rescale_image(datin, rescalefn='linear', vmin=None, vmax=None, a=None)
 def zscale_limits(datin)
+def suggest_levels(data, ignore_zeros=True, verbose=False)
+def describe_image(data, hdr=None, name='', ignore_zeros=True, verbose=True)
+def describe_images(layers, names=None, colors=None, palette=None, ignore_zeros=True, verbose=False)
 def combine_multicolor_colorspace(im_list_colorized, colorspace='lab', blend='screen', weights=None, gamma=2.2, inverse=False, dtype=<class 'numpy.float64'>)
+def combine_colorized_layers(colorized, mode='rgb', blend='screen', gamma=2.2, background='black', inverse=False, dtype=<class 'numpy.float64'>)
 def combine_multicolor_alpha(im_list_colorized, background='white', mode='rgb', gamma=2.2, weights=None, dtype=<class 'numpy.float64'>)
 def composite_over_background(rgb, background=(1.0, 1.0, 1.0), alpha=None)
 class McfSession(n_panels=4)
+def gui(host='127.0.0.1', port=8321, open_browser=True, browser=None, session=None, state=None, files=None, colors=None, labels=None)
+def gui_embed(host='127.0.0.1', port=8321, session=None, state=None, files=None, colors=None, labels=None, **kwargs)
+def gui_qt(session=None, state=None, files=None, colors=None, labels=None)
+def start_gui_server(host='127.0.0.1', port=8321, session=None, state=None, files=None, colors=None, labels=None, **kwargs)
 def make_transparent_cutout(rgb, size=None, alpha_lo=55.0, alpha_hi=99.3, alpha_gamma=0.5, alpha_source='luma', layer=None, alpha_smooth=0.0, sky_color='black', crop='auto', pad=0.05, matte='none', soft_edge=0.0, invert=False, existing_alpha='replace', wcs=None, sky_box=None)
 def save_transparent_cutout(rgba, savepath, overwrite=True)
 def preview_cutout_on_backgrounds(rgba, backgrounds=None, figsize=None)
 def crop_image(datain, hdrin, xbounds, ybounds, newref=None, savenew=False, overwrite=False)
 def align_stack(images, reference=None, optimal=False, frame=None, **kwargs)
-def reproject_image(mapin, hdrfrom, hdrto, scale=False, method='interp', interpdict={'order': 1, 'mode': 'constant', 'cval': nan}, returnfootprint=False, parallel=True)
+def reproject_image(mapin, hdrfrom, hdrto, scale=False, method='interp', order=1, interpdict={'order': 1, 'mode': 'constant', 'cval': nan}, returnfootprint=False, parallel=True)
+def tidy_header(hdrin, warn_flip=True)
+def reproject_north_up(datain, hdrin, **kwargs)
+def prep_layers(images, north_up=True, rotation_deg=0.0, oversample=1.0, crop='overlap', frame='auto', method='interp', order=1, scale=False, blank_zeros=False, fit_footprint=True, pad=0)
+def describe_header(hdrin, name='', verbose=True)
+def match_beam(data, hdr, bmaj_to_asec, bmin_to_asec, bpa_to_deg, bmaj_from_asec=None, bmin_from_asec=None, bpa_from_deg=None, per_beam=False, pad_pix=20, update_header=True)
+def match_beam_to_header(data, hdr, hdr_target, per_beam=False, pad_pix=20, update_header=True)
 def make_combined_figure(session, combined=None, figsize=(7, 7), facecolor='w')
+def make_component_mosaic(session, combined=None, *, components='top', max_per_line=3, ticks='plain', show=None, gap=0.06, panel_pad=0.2, cell_size=1.7, figsize=None, facecolor=None, overlays='hero', title=None, label_loc='upper left')
 def apply_bare_plot_style(compose, *, transparent=False)
 def overlays_available()
 def suggest_colors(n, lightness=65.0, chroma=55.0, hue_start=25.0)
 def list_palettes()
 def get_palette(name, n=None)
+def colors_for_hue_pattern(pattern, n, rotation=0.0, lightness=65.0, chroma=55.0)
+def colors_from_hsv(n, saturation=0.85, value=0.9, hue_start=0.0)
+def preview_palette(colors, n=None, labels=None, *, background='black', mode='rgb', blend='screen', gamma=2.2, combine_background='black', inverse=False, cvd=True, min_distance=25.0, swatch_size=220, figsize=None, title=None)
 def save_rgb_fits(savepath, multicolorRGBdat, commonhdr, overwrite=True, annotate=True)
+def save_combined(savepath, combined, header, session_info=None, overwrite=True, annotate=True)
 
 ## Docs
 

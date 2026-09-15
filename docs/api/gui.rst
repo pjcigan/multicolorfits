@@ -3,7 +3,8 @@ GUIs
 
 Browser and desktop front ends over :class:`~multicolorfits.McfSession`.
 Tutorial: :doc:`/tutorials/gui_web_walkthrough`,
-:doc:`/tutorials/gui_notebook_embed`.
+:doc:`/tutorials/gui_notebook_embed`. Job snippets:
+:doc:`/capabilities/index`. Recipe: ``mcf.recipes('gui')``.
 
 The browser GUI opens your system default browser unless you pass
 ``browser='firefox'`` (etc.) to :func:`~multicolorfits.gui` or

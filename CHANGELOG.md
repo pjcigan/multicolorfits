@@ -9,6 +9,59 @@ for GUI and packaging changes.
 
 ---
 
+## [3.1.0] — 2026-09-15
+
+### Added
+- Image-prep helpers: ``tidy_header``, ``describe_header``, ``wcs_is_flipped``,
+  frame-aware ``make_rotated_header`` / ``reproject_north_up`` (north-up stays
+  in the image frame), ``prep_layers``, ``crop_to_overlap``, ``blank_missing``,
+  and ``read_fits`` / ``write_fits``.
+- Elliptical beam matching (``match_beam``, Wild 1970 kernel; ``convolve2Dgaus``
+  alias) from the maintainer ``tasks.py`` helpers.
+- ``suggest_levels`` / ``describe_image`` and an **Auto levels** button: a
+  starting stretch and vmin/vmax from the pixel distribution (not a finished
+  display). ``describe_image(..., verbose=False)`` returns the dict without
+  printing. ``describe_images`` characterizes a set of layers and returns
+  suggested colors plus parallel lists for ``load_files`` / ``set_display``.
+  ``McfSession.apply_suggested_levels`` applies that starting point to every
+  loaded panel. ``set_display`` (and optional ``load_files`` stretch/limit
+  arguments) sets values you already chose.
+- Align layers dialog: optional north-up and crop-to-overlap.
+- Browser GUI brand mark uses ``mcf-mark.png`` (the old SVG wrapped a PNG
+  data URI and carried an illegal ``--`` in an XML comment, so browsers
+  refused to paint it).
+- ``preview_palette``: scripting preview of layer colors (tiles on a chosen
+  background, mode-aware combo swatch, CVD tile rows and ΔE warnings).
+  ``palette_colorblind_report`` / ``resolve_palette_colors`` are shared by
+  the session and CLI. GUI palette menu label for ``pob`` is plain ``POB``
+  (no NGC 602 tag).
+- Guide page for overlays and after-the-fact annotations (how to reach the
+  combined axes, scale bar, compass, beam, swatch, band labels). Overlay
+  docstrings list the forwarded style kwargs, including ``stroke_color`` /
+  ``stroke_lw`` and padding. Compass *pad* defaults to 0.02 (skyplothelper's
+  0.05 plus the arrow length sat too far into the frame).
+- Docs **Capabilities** hub (top-level lane): job-oriented snippets + coverage
+  matrix linking Guide / Examples / API / ``mcf.recipes`` keywords. Recipe
+  catalog gains GUI, mosaic, ``export_script``, ``align_panels``,
+  ``match_beam``, ``combine_colorized_layers``, and ``save_combined`` entries
+  (regenerate ``llms.txt`` / ``llms-full.txt`` from ``_overview.py``).
+- Discoverability deepen: session method→task map; expanded WCS / prep /
+  saving guides (fixed ``make_combined_figure`` return docs); API “where to
+  look” blurbs on session / pipeline / WCS / compositing / figures / GUI;
+  docstring ``Examples`` on overlays, ``align_stack`` / ``prep_layers``,
+  ``tidy_header`` / ``describe_header`` / ``crop_image``, and key
+  ``McfSession`` methods.
+- Guide page for choosing / generating layer colors (curated palettes, CIE
+  LCh ``suggest_colors``, hue patterns, optional HSV wheel, ``preview_palette``
+  display tips).
+- Component mosaic strip panels show each layer display-ready (the stretch,
+  limits, and gamma that went into the composite), not the pre-display mixer
+  buffer.
+- Combined-view zoom and pan in the browser GUI (display only). Crop to view
+  uses ``crop_image`` after layers share a grid; it does not reproject.
+
+---
+
 ## [3.0.0] — 2026-07-18
 
 Traits-free package rebuild: browser + Qt GUIs over a shared session model,

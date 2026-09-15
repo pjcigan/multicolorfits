@@ -4,6 +4,9 @@ Overlays
 Optional skyplothelper-backed compass, beam, and scale-bar helpers
 (``pip install multicolorfits[overlays]``).
 
+How to reach the combined axes, and how to add a swatch or scale bar
+after the figure exists: :doc:`/guide/overlays`.
+
 .. currentmodule:: multicolorfits
 
 .. autosummary::

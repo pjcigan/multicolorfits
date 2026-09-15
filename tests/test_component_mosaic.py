@@ -130,3 +130,25 @@ class TestMakeComponentMosaic:
     def test_empty_session_raises(self):
         with pytest.raises(ValueError):
             make_component_mosaic(mcf.McfSession())
+
+    def test_components_match_display_not_load_defaults(self):
+        """Strip panels use the panel's current stretch, not linear min/max."""
+        data = np.zeros((32, 32))
+        data[8:24, 8:24] = np.linspace(1.0, 100.0, 16 * 16).reshape(16, 16)
+        s = mcf.McfSession(n_panels=1)
+        s.panels[0].set_data(data, make_test_header())
+        s.panels[0].color = '#00FF00'
+        s.panels[0].stretch = 'asinh'
+        s.panels[0].set_limits(2.0, 8.0)
+        fig, axes = make_component_mosaic(s, ticks='plain')
+        shown = np.asarray(axes['components'][0].images[0].get_array())
+        expected = s.panels[0].render_display(gamma=s.compose.gamma)
+        pre_display = np.clip(np.nan_to_num(
+            s.panels[0].render_color_rgb(gamma=s.compose.gamma)), 0, 1)
+        assert shown.shape == expected.shape
+        assert np.allclose(shown, expected, atol=1e-6)
+        assert not np.allclose(shown, pre_display, atol=0.05)
+        s.panels[0].stretch = 'linear'
+        s.panels[0].reset_minmax()
+        load_default = s.panels[0].render_display(gamma=s.compose.gamma)
+        assert not np.allclose(shown, load_default, atol=0.05)

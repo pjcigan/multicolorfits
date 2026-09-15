@@ -21,11 +21,12 @@ __all__ = [
     'reproject_stack_to_reference',
     'align_stack',
     'downsample_for_preview',
+    'prep_layers',
 ]
 
 
 def reproject_stack_to_header(images, hdrto, method='interp', scale=False,
-                              return_footprints=False):
+                              return_footprints=False, order=1):
     """
     Reproject every (data, header) pair onto a single target header.
 
@@ -47,7 +48,7 @@ def reproject_stack_to_header(images, hdrto, method='interp', scale=False,
     footprints = []
     for data, hdr in images:
         result = reproject_image(data, hdr, hdrto, scale=scale, method=method,
-                             returnfootprint=return_footprints)
+                                 order=order, returnfootprint=return_footprints)
         if return_footprints:
             out.append(result[0])
             footprints.append(result[1])
@@ -60,7 +61,7 @@ def reproject_stack_to_header(images, hdrto, method='interp', scale=False,
 
 def reproject_stack_to_reference(images, reference=0, method='interp', scale=False,
                                  frame=None, projection=None, fit_footprint=True,
-                                 return_footprints=False):
+                                 return_footprints=False, order=1):
     """
     Reproject all images onto the grid of a reference layer.
 
@@ -90,7 +91,7 @@ def reproject_stack_to_reference(images, reference=0, method='interp', scale=Fal
         hdr_ref = convert_header_frame(hdr_ref, frame=frame, projection=projection,
                                        fit_footprint=fit_footprint)
     result = reproject_stack_to_header(images, hdr_ref, method=method, scale=scale,
-                                       return_footprints=return_footprints)
+                                       return_footprints=return_footprints, order=order)
     if return_footprints:
         data_list, footprints = result
         return data_list, hdr_ref, footprints
@@ -125,12 +126,22 @@ def align_stack(images, reference=None, optimal=False, frame=None, **kwargs):
     Returns
     -------
     list of (array, header)
+
+    Examples
+    --------
+    ::
+
+        import multicolorfits as mcf
+        # Needs pip install "multicolorfits[reproject]"
+        aligned = mcf.align_stack(
+            [(data_a, hdr_a), (data_b, hdr_b)], reference=0)
+        # aligned = mcf.align_stack(..., optimal=True, frame='galactic')
     """
     if optimal and reference is not None:
         raise ValueError('Specify either reference= or optimal=True, not both')
     if optimal:
         wcs_kwargs = {k: kwargs.pop(k) for k in list(kwargs) if k in ('projection', 'resolution', 'auto_rotate')}
-        reproj_kwargs = {k: kwargs.pop(k) for k in list(kwargs) if k in ('method', 'scale', 'return_footprints')}
+        reproj_kwargs = {k: kwargs.pop(k) for k in list(kwargs) if k in ('method', 'scale', 'return_footprints', 'order')}
         hdr_master = optimal_common_header(images, frame=frame, **wcs_kwargs)
         data_list = reproject_stack_to_header(images, hdr_master, **reproj_kwargs)
     else:
@@ -179,3 +190,72 @@ def downsample_for_preview(arr, max_size=512, order=1):
                       anti_aliasing=True, preserve_range=True)
     return resize(arr, new_shape + (3,), order=order, mode='reflect',
                   anti_aliasing=True, preserve_range=True)
+
+
+def prep_layers(images, north_up=True, rotation_deg=0.0, oversample=1.0,
+                crop='overlap', frame='auto', method='interp', order=1,
+                scale=False, blank_zeros=False, fit_footprint=True, pad=0):
+    """
+    Tidy headers, optionally rotate to north-up (or an arbitrary angle),
+    reproject onto one grid, and crop to the overlapping finite pixels.
+
+    Parameters
+    ----------
+    images : list of (array, header)
+    north_up : bool
+        Build the target grid with make_rotated_header. False keeps the
+        reference (first) grid after tidying, unless ``rotation_deg`` or
+        ``oversample`` is set.
+    rotation_deg : float
+        Extra rotation from north-up in the image frame (0 = north up).
+    oversample : float
+        Shrink the target pixel scale by this factor (2 = half the pixel size).
+    crop : {'overlap', 'none'}
+        Crop to pixels finite in every layer after reprojection.
+    frame : str
+        'auto' keeps each layer's frame on a target built from the first
+        image. A named frame ('galactic', ...) changes the target frame.
+    blank_zeros : bool
+        Treat exact zeros as missing before reprojection.
+    pad : int
+        Passed to crop_to_overlap.
+
+    Returns
+    -------
+    list of (array, header)
+        Every header is the common target (after the optional crop).
+
+    Examples
+    --------
+    ::
+
+        import multicolorfits as mcf
+        prepared = mcf.prep_layers(
+            [(data_a, hdr_a), (data_b, hdr_b)],
+            north_up=True, oversample=2, crop='overlap', order=1)
+    """
+    from .skyframes import make_rotated_header
+    from .wcs_tools import blank_missing, crop_to_overlap, tidy_header
+
+    if not images:
+        raise ValueError('prep_layers: images list is empty')
+    cleaned = []
+    for data, hdr in images:
+        cleaned.append((blank_missing(data, zeros=blank_zeros), tidy_header(hdr)))
+
+    rotate = bool(north_up) or abs(float(rotation_deg or 0.0)) > 0 or float(oversample or 1) != 1.0
+    if rotate:
+        hdr_tgt = make_rotated_header(
+            cleaned[0][1], rotation_deg=rotation_deg, oversample=oversample,
+            fit_footprint=fit_footprint, frame=frame)
+        arrays = reproject_stack_to_header(
+            cleaned, hdr_tgt, method=method, scale=scale, order=order)
+        common = hdr_tgt
+    else:
+        frame_arg = None if frame in (None, 'auto') else frame
+        arrays, common = reproject_stack_to_reference(
+            cleaned, reference=0, method=method, scale=scale, order=order,
+            frame=frame_arg, fit_footprint=fit_footprint)
+    if str(crop).lower() in ('overlap', 'auto', 'true', '1'):
+        arrays, common = crop_to_overlap(arrays, common, pad=pad)
+    return [(arr, common) for arr in arrays]

@@ -72,13 +72,17 @@ light/dark theme (`?theme=light\|dark` also works for screenshots).
 
 1. Load FITS via path, folder browse, or upload (web).
 2. Set stretch, hex color, label, vmin/vmax or percentile sliders, optional smooth.
-3. Use **Zscale** / **Min/Max** as needed; **Header** to inspect/edit cards.
+3. Use **Zscale** / **Min/Max** as needed; **Auto levels** for a starting
+   stretch and vmin/vmax from the pixel distribution (editable; not a
+   finished display). **Header** inspects or edits cards.
 4. Default is **four** panels. Click **+ Add panel** for more (up to 16), or
    **Remove** on a panel you no longer need.
 
 Layers must share a pixel grid. When they do not, a warning bar offers
 **Align layers…** (needs `[reproject]`) — reproject onto the reference panel or
-into ICRS / Galactic / …
+into ICRS / Galactic / …. The same dialog can put layers north-up in that
+frame and crop to the overlap. Scroll and drag zoom the combined preview
+(display only); **Crop to view** trims a shared grid to the visible pixels.
 
 ---
 

@@ -40,8 +40,10 @@ import multicolorfits as mcf
 # fig.savefig('mosaic.png', dpi=150, bbox_inches='tight')
 # ```
 #
-# `axes['combined']` is the hero; `axes['components']` is the list of layer
-# panels.  Empty leftover cells in the strip stay blank for custom annotations.
+# `axes['combined']` is the hero (the composited image — not an entry in
+# `s.panels`).  `axes['components']` is the list of layer panels.  Empty
+# leftover cells in the strip stay blank for custom annotations.
+# Scale bar, compass, swatch: [overlays](../guide/overlays.md).
 #
 # Local regen scratch: `examples/output/component_mosaic/` → copy into
 # `docs/_static/mosaics/` via `docs/make_docs_figures.py` (not committed).

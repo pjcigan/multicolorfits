@@ -611,6 +611,14 @@ function wirePanel(panel, i) {
     try { updatePanelUI(i, await apiPost(`/api/panel/${i}/zscale`)); refreshPanelPreview(i); }
     catch (err) { setStatus(err.message, true); }
   });
+  q('.btn-auto-levels').addEventListener('click', async () => {
+    try {
+      const p = await apiPost(`/api/panel/${i}/auto_levels`);
+      updatePanelUI(i, p);
+      refreshPanelPreview(i);
+      if (p.suggestion && p.suggestion.reason) setStatus(p.suggestion.reason);
+    } catch (err) { setStatus(err.message, true); }
+  });
   q('.btn-header').addEventListener('click', () => openHeaderEditor(i));
   q('.btn-clear').addEventListener('click', async () => {
     await apiPost(`/api/panel/${i}/clear`);
@@ -770,23 +778,47 @@ function showAlignDialog() {
   });
   if (status.reference != null) rSel.value = String(status.reference);
 
-  form.append(tLabel, tSel, rLabel, rSel);
+  const northLabel = document.createElement('label');
+  northLabel.className = 'chk';
+  const northChk = document.createElement('input');
+  northChk.type = 'checkbox';
+  northLabel.append(northChk, document.createTextNode(' North-up in the target frame'));
+
+  const osLabel = document.createElement('label');
+  osLabel.textContent = 'Oversample (1 = keep pixel scale)';
+  const osInput = document.createElement('input');
+  osInput.type = 'number';
+  osInput.min = '1';
+  osInput.step = '1';
+  osInput.value = '1';
+
+  const cropLabel = document.createElement('label');
+  cropLabel.className = 'chk';
+  const cropChk = document.createElement('input');
+  cropChk.type = 'checkbox';
+  cropLabel.append(cropChk, document.createTextNode(' Crop to overlap after reproject'));
+
+  form.append(tLabel, tSel, rLabel, rSel, northLabel, osLabel, osInput, cropLabel, cropChk);
 
   showModal('Align layers (reproject)', form, [
     {
       label: 'Align', primary: true,
       onclick: async () => {
-        await doAlign(tSel.value, parseInt(rSel.value, 10));
+        await doAlign(tSel.value, parseInt(rSel.value, 10), {
+          north_up: northChk.checked,
+          oversample: parseFloat(osInput.value) || 1,
+          crop: cropChk.checked ? 'overlap' : 'none',
+        });
       },
     },
     { label: 'Cancel' },
   ]);
 }
 
-async function doAlign(target, reference) {
+async function doAlign(target, reference, extra) {
   try {
     setStatus('Reprojecting layers…');
-    const res = await apiPost('/api/align', { target, reference });
+    const res = await apiPost('/api/align', Object.assign({ target, reference }, extra || {}));
     (res.state.panels || []).forEach((p, i) => {
       state.panels[i] = p;
       if (p.loaded) {
@@ -1280,13 +1312,15 @@ function livePreview() {
   if (!anyLoaded) return Promise.resolve(false);
   const active = state.panels.map((p, j) => (p && p.loaded) ? j : -1).filter(j => j >= 0);
   const els = state.panels.map((_, j) => panelEl(j));
-  if (PreviewClient.canRenderCombined(active, els, state.compose)
+    if (PreviewClient.canRenderCombined(active, els, state.compose)
       && PreviewClient.renderCombined(active, els, state.compose)) {
+    setCombinedViewKind('data');
     const mode = PreviewClient.usesGpu() ? 'GPU' : 'CPU';
     setStatus(`Fast preview (${mode}, γ=${Number(state.compose.gamma).toFixed(2)})`);
     return Promise.resolve(true);
   }
   PreviewClient.showServerCombined();
+  setCombinedViewKind('data');
   const img = $('#combined-img');
   const inv = state.compose.inverse ? 'true' : 'false';
   const g = state.compose.gamma;
@@ -1326,6 +1360,7 @@ async function plotCombined() {
   if (!anyLoaded) { setStatus('Load at least one image first', true); return; }
   // Always full-resolution WCS figure — Fast preview handles interactive updates.
   PreviewClient.showServerCombined();
+  setCombinedViewKind('wcs');
   $('#combined-spinner').hidden = false;
   setStatus('Rendering full WCS plot…');
   const img = $('#combined-img');
@@ -1364,6 +1399,7 @@ const sendCompose = async (payload, replot) => {
 };
 
 function wireCombined() {
+  wireCombinedView();
   $('#btn-plot-combined').addEventListener('click', plotCombined);
   $('#btn-align').addEventListener('click', showAlignDialog);
 
@@ -1875,6 +1911,169 @@ function openCutoutDialog() {
 }
 
 // Map mouse position on the displayed combined image to data pixel coords.
+// Display-only zoom/pan on the combined preview. Does not resample.
+const combinedView = { scale: 1, tx: 0, ty: 0 };
+let combinedDrag = null;
+
+function visibleCombinedEl() {
+  const canvas = $('#combined-canvas');
+  const img = $('#combined-img');
+  if (canvas && !canvas.hidden) return canvas;
+  if (img && !img.hidden) return img;
+  return null;
+}
+
+function setCombinedViewKind(kind) {
+  const fig = $('#combined-figure');
+  if (fig) fig.dataset.viewKind = kind;
+}
+
+function applyCombinedView() {
+  const idle = combinedView.scale === 1 && combinedView.tx === 0 && combinedView.ty === 0;
+  const t = idle ? '' : `translate(${combinedView.tx}px, ${combinedView.ty}px) scale(${combinedView.scale})`;
+  ['combined-img', 'combined-canvas'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.transformOrigin = '0 0';
+    el.style.transform = t;
+  });
+  const fig = $('#combined-figure');
+  if (fig) fig.classList.toggle('zoomed', combinedView.scale > 1.01);
+  const label = $('#zoom-label');
+  if (label) label.textContent = (Math.round(combinedView.scale * 10) / 10) + '×';
+}
+
+function resetCombinedView() {
+  combinedView.scale = 1;
+  combinedView.tx = 0;
+  combinedView.ty = 0;
+  applyCombinedView();
+}
+
+function zoomCombinedAt(clientX, clientY, factor) {
+  const el = visibleCombinedEl();
+  if (!el) return;
+  const old = combinedView.scale;
+  let next = old * factor;
+  next = Math.min(32, Math.max(1, next));
+  if (Math.abs(next - old) < 1e-6) return;
+  const rect = el.getBoundingClientRect();
+  const layoutLeft = rect.left - combinedView.tx;
+  const layoutTop = rect.top - combinedView.ty;
+  const localX = (clientX - layoutLeft - combinedView.tx) / old;
+  const localY = (clientY - layoutTop - combinedView.ty) / old;
+  combinedView.scale = next;
+  if (next === 1) {
+    combinedView.tx = 0;
+    combinedView.ty = 0;
+  } else {
+    combinedView.tx = clientX - layoutLeft - next * localX;
+    combinedView.ty = clientY - layoutTop - next * localY;
+  }
+  applyCombinedView();
+}
+
+function visibleImageFraction(el) {
+  const fig = $('#combined-figure').getBoundingClientRect();
+  const box = el.getBoundingClientRect();
+  const left = Math.max(fig.left, box.left);
+  const right = Math.min(fig.right, box.right);
+  const top = Math.max(fig.top, box.top);
+  const bottom = Math.min(fig.bottom, box.bottom);
+  if (right - left < 2 || bottom - top < 2 || box.width < 2 || box.height < 2) return null;
+  return {
+    fx0: (left - box.left) / box.width,
+    fx1: (right - box.left) / box.width,
+    fy0: (top - box.top) / box.height,
+    fy1: (bottom - box.top) / box.height,
+  };
+}
+
+function fractionToDataBounds(frac, shape) {
+  const ny = shape[0];
+  const nx = shape[1];
+  const x0 = Math.max(0, Math.floor(frac.fx0 * (nx - 1)));
+  const x1 = Math.min(nx - 1, Math.ceil(frac.fx1 * (nx - 1)));
+  const yTop = Math.round((1 - frac.fy0) * (ny - 1));
+  const yBot = Math.round((1 - frac.fy1) * (ny - 1));
+  const y0 = Math.max(0, Math.min(yTop, yBot));
+  const y1 = Math.min(ny - 1, Math.max(yTop, yBot));
+  return { xbounds: [x0, x1], ybounds: [y0, y1] };
+}
+
+function wireCombinedView() {
+  const fig = $('#combined-figure');
+  if (!fig) return;
+  fig.addEventListener('wheel', (evt) => {
+    if (!visibleCombinedEl()) return;
+    evt.preventDefault();
+    const factor = evt.deltaY < 0 ? 1.15 : (1 / 1.15);
+    zoomCombinedAt(evt.clientX, evt.clientY, factor);
+  }, { passive: false });
+  fig.addEventListener('dblclick', (evt) => {
+    if (evt.target.closest && evt.target.closest('#combined-zoombar')) return;
+    resetCombinedView();
+  });
+  fig.addEventListener('pointerdown', (evt) => {
+    if (evt.button !== 0) return;
+    if (evt.target.closest && evt.target.closest('#combined-zoombar, button')) return;
+    if (!visibleCombinedEl()) return;
+    combinedDrag = { x: evt.clientX, y: evt.clientY, tx: combinedView.tx, ty: combinedView.ty };
+    fig.classList.add('panning');
+    fig.setPointerCapture(evt.pointerId);
+  });
+  fig.addEventListener('pointermove', (evt) => {
+    if (!combinedDrag) return;
+    combinedView.tx = combinedDrag.tx + (evt.clientX - combinedDrag.x);
+    combinedView.ty = combinedDrag.ty + (evt.clientY - combinedDrag.y);
+    applyCombinedView();
+  });
+  function endDrag() {
+    if (!combinedDrag) return;
+    combinedDrag = null;
+    fig.classList.remove('panning');
+  }
+  fig.addEventListener('pointerup', endDrag);
+  fig.addEventListener('pointercancel', endDrag);
+  $('#btn-zoom-reset').addEventListener('click', resetCombinedView);
+  $('#btn-crop-view').addEventListener('click', cropCombinedView);
+}
+
+async function cropCombinedView() {
+  const fig = $('#combined-figure');
+  if (fig && fig.dataset.viewKind === 'wcs') {
+    setStatus('Crop to view uses the fast pixel preview, not the WCS axes figure. Turn Fast preview on.', true);
+    return;
+  }
+  const el = visibleCombinedEl();
+  if (!el) { setStatus('Nothing to crop yet', true); return; }
+  const shape = PreviewClient.dataShape(state.panels);
+  if (!shape) { setStatus('Load an image first', true); return; }
+  const frac = visibleImageFraction(el);
+  if (!frac) { setStatus('Visible region is empty', true); return; }
+  const bounds = fractionToDataBounds(frac, shape);
+  try {
+    setStatus('Cropping to the visible view…');
+    const res = await apiPost('/api/crop_view', bounds);
+    (res.state.panels || []).forEach((p, i) => { state.panels[i] = p; });
+    resetCombinedView();
+    (res.state.panels || []).forEach((p, i) => {
+      if (!p.loaded) return;
+      updatePanelUI(i, p);
+      PreviewClient.invalidatePanel(i);
+      PreviewClient.loadPanelBuffer(i).then(() => {
+        if (!PreviewClient.renderPanel(panelEl(i), state.compose)) refreshPanelPreview(i);
+      }).catch(() => refreshPanelPreview(i));
+    });
+    setCombinedViewKind('data');
+    await livePreview();
+    await checkGridStatus();
+    setStatus((res.result && res.result.message) || 'Cropped to view');
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+}
+
 function imgPixelFromEvent(img, evt) {
   const rect = img.getBoundingClientRect();
   const nw = img.naturalWidth || img.width;

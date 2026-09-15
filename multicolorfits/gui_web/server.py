@@ -131,13 +131,30 @@ def create_app(session=None):
                                 detail="Aligning requires the 'reproject' package. "
                                        'Install with:  pip install multicolorfits[reproject]')
         try:
-            result = session.align_panels(target=target, reference=reference)
+            result = session.align_panels(
+                target=target, reference=reference,
+                north_up=bool(payload.get('north_up', False)),
+                rotation_deg=float(payload.get('rotation_deg', 0) or 0),
+                oversample=float(payload.get('oversample', 1) or 1),
+                crop=payload.get('crop', 'none') or 'none',
+                order=int(payload.get('order', 1) or 1),
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         except ImportError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         except Exception as exc:
             raise HTTPException(status_code=400, detail='Alignment failed: %s' % exc)
+        return {'result': result, 'state': session.to_dict()}
+
+    @app.post('/api/crop_view')
+    def crop_view(payload: dict):
+        try:
+            result = session.crop_panels(payload.get('xbounds'), payload.get('ybounds'))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail='Crop failed: %s' % exc)
         return {'result': result, 'state': session.to_dict()}
 
     # ---------- palettes & colorblind check ----------
@@ -258,6 +275,22 @@ def create_app(session=None):
         panel = get_panel(idx)
         panel.apply_zscale()
         return panel.to_dict()
+
+    @app.post('/api/panel/{idx}/auto_levels')
+    def panel_auto_levels(idx: int):
+        panel = get_panel(idx)
+        try:
+            rec = panel.apply_suggested_levels()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        out = panel.to_dict()
+        out['suggestion'] = {
+            'stretch': rec['stretch'],
+            'vmin': rec['vmin'],
+            'vmax': rec['vmax'],
+            'reason': rec['reason'],
+        }
+        return out
 
     @app.post('/api/panel/{idx}/minmax')
     def panel_minmax(idx: int):

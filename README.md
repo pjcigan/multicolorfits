@@ -3,11 +3,11 @@
 Colorize and combine multiple FITS images for visually aesthetic scientific
 plots — with any number of image layers, in any colors.
 
-**version 3.0.0**
+**version 3.1.0**
 
 API documentation: [https://multicolorfits.readthedocs.io](https://multicolorfits.readthedocs.io)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3256060.svg)](https://doi.org/10.5281/zenodo.3256060)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.3256060-blue)](https://doi.org/10.5281/zenodo.3256060)
 [![ASCL](https://img.shields.io/badge/ascl-1909.002-blue.svg?colorB=262255)](https://ascl.net/1909.002)
 [![PyPI version](https://img.shields.io/pypi/v/multicolorfits.svg)](https://pypi.org/project/multicolorfits/)
 [![Downloads](https://pepy.tech/badge/multicolorfits)](https://pepy.tech/project/multicolorfits)

@@ -25,7 +25,7 @@
 
 <header>
   <h1 class="brand-title">
-    <img class="brand-mark" src="/static/mcf-mark.svg" width="28" height="28" alt="">
+    <img class="brand-mark" src="/static/mcf-mark.png" width="28" height="28" alt="">
     <span class="brand-text"><span class="brand-muted">Multi</span><span class="brand-color" aria-label="Color"><span>C</span><span>o</span><span>l</span><span>o</span><span>r</span></span><span class="brand-muted">Fits</span></span>
   </h1>
   <div class="header-controls">
@@ -298,6 +298,11 @@
         </div>
         <canvas id="combined-canvas" hidden></canvas>
         <img id="combined-img" alt="" hidden>
+        <div id="combined-zoombar">
+          <span id="zoom-label" title="Scroll to zoom, drag to pan. Display only — does not resample.">1×</span>
+          <button type="button" id="btn-zoom-reset" title="Reset zoom and pan">Reset</button>
+          <button type="button" id="btn-crop-view" title="Crop loaded layers to the visible pixels. Layers must already share a grid. Uses the fast preview, not the WCS axes figure.">Crop to view</button>
+        </div>
         <div id="combined-spinner" class="spinner" hidden></div>
       </div>
       <div id="cursor-readout" class="cursor-readout" aria-live="polite"></div>
@@ -371,6 +376,7 @@
       <div class="row">
         <button class="btn-minmax" title="Reset limits to full data min/max">Min/Max</button>
         <button class="btn-zscale" title="Set limits with the zscale algorithm">Zscale</button>
+        <button class="btn-auto-levels" title="Suggest a stretch and vmin/vmax from the pixel distribution. Starting point only; does not lock the fields.">Auto levels</button>
         <button class="btn-header" title="View / edit the FITS header">Header</button>
         <button class="btn-clear" title="Clear this panel">Clear</button>
         <button class="btn-remove" title="Remove this panel tab">Remove</button>

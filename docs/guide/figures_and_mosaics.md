@@ -1,17 +1,28 @@
 # Figures and mosaics
 
+Job snippets: {doc}`../capabilities/index`. Recipes: `mcf.recipes('mosaic')`,
+`mcf.recipes('figure')`.
+
 ## Combined WCS figure
 
-```python
-from multicolorfits.figures import make_combined_figure
+`session.panels` are the input layers only. The combined image is an RGB
+array (`session.render_combined()`) drawn onto a matplotlib axes when you
+build a figure. That axes is what you annotate.
 
-rgb = session.render_combined()
-fig, ax = make_combined_figure(session, combined=rgb)
+```python
+fig = mcf.make_combined_figure(session)
+ax = fig.axes[0]                 # combined axes; grab it before adding insets
+# ax = mcf.setup_combined_axes(fig, session)  # same axes, returned directly
+fig.savefig('combined.png', dpi=200, bbox_inches='tight',
+            facecolor=fig.get_facecolor())
 ```
 
-Compose flags on `session.compose` control ticks, title, legend, combo swatch,
-band labels, and optional skyplothelper overlays.  Legend / swatch concepts:
-{doc}`session_model`.
+`make_combined_figure` returns the figure only, and that figure is not the
+pyplot current figure, so `plt.savefig` writes a blank canvas.
+
+Compose flags on `session.compose` (legend, combo swatch, band labels,
+compass, beam, scale bar) are applied while the figure is built. Set them
+first, or draw onto `ax` afterwards — see {doc}`overlays`.
 
 ```{image} ../_static/showcase/ngc602_hero_light.png
 :class: mcf-plot plot-light
@@ -25,7 +36,9 @@ band labels, and optional skyplothelper overlays.  Legend / swatch concepts:
 
 ## Component mosaic
 
-Hero combined panel plus a strip of colorized components on a **shared WCS**:
+Hero combined panel plus a strip of colorized components on a **shared WCS**.
+Each strip panel is that layer as it was prepared for the composite (its
+stretch, limits, color, and display gamma), not a reload of the raw FITS:
 
 ```python
 import multicolorfits as mcf
@@ -35,10 +48,19 @@ fig, axes = mcf.make_component_mosaic(
     components='top',     # or bottom / left / right
     max_per_line=3,
     ticks='plain',        # plain | minimal | full
-    overlays='hero',
+    overlays='hero',      # compass / beam / scale bar on the hero only
 )
-# axes['combined'], axes['components']
+ax = axes['combined']         # composited image — not s.panels[i]
+# axes['components'][i]       # strip panel i, same order as the loaded layers
+fig.savefig('mosaic.png', dpi=200, bbox_inches='tight',
+            facecolor=fig.get_facecolor())
 ```
+
+`s.panels` stays length 3 (or however many files you loaded). Nothing in
+that list is the blended result. Overlays and a color swatch go on
+`axes['combined']`. With `ticks='plain'` the channel legend is skipped
+even if `show_legend` is set; add it after the fact, or use
+`ticks='minimal'`. Full annotation examples: {doc}`overlays`.
 
 Use this when you want a figure that explains each layer, not only the blend.
 
@@ -81,22 +103,16 @@ Use this when you want a figure that explains each layer, not only the blend.
 ```
 
 Tutorial notebook: {doc}`../tutorials/component_mosaic`.
-Local regen scratch → `_static/mosaics/` via `python docs/make_docs_figures.py`.
+Regen layout figures (dual light/dark, no chrome remap)::
 
-## Overlays (compass, beam, scale bar)
+    python docs/make_docs_figures.py --mosaics-only
 
-Optional chrome from skyplothelper (`pip install "multicolorfits[overlays]"`):
+## Overlays and other annotations
 
-```python
-s.compose.show_compass = True
-s.compose.show_beam = True          # needs BMAJ/BMIN (etc.) in the header
-s.compose.show_scale_bar = True
-# locations: compose.compass_loc, beam_loc, scale_bar_loc, …
+Compass, beam, scale bar, color swatch, and band labels are drawn on the
+combined axes, not stored as another panel. Set the `session.compose` flags
+before building the figure, or add them afterwards to `axes['combined']` /
+`fig.axes[0]`.
 
-fig, ax = make_combined_figure(s)
-# or on a mosaic hero only:
-fig, axes = mcf.make_component_mosaic(s, overlays='hero')
-```
-
-Check availability with `mcf.overlays_available()`.  Low-level helpers:
-{doc}`../api/overlays`.  Export Script emits the same toggles when they are on.
+{doc}`overlays` covers both paths, including the `[overlays]` extra
+(skyplothelper) and how scale-bar corners differ from compass corners.

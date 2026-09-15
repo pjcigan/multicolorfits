@@ -3,7 +3,7 @@
 Worked narratives on public datasets, plus a small image gallery. Prefer
 {doc}`../tutorials/index` when you want a short notebook-oriented path;
 these pages keep the fuller scripting story (session-first, then classic
-API).
+API). Job-oriented snippets: {doc}`../capabilities/index`.
 
 ```{toctree}
 :maxdepth: 1

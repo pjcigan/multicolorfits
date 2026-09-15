@@ -45,6 +45,15 @@ class TestSessionJson:
         assert s.panels[0].in_use
         assert s.panels[0].color == '#FF0000'
         assert s.panels[0].label == 'A'
+        assert s.panels[0].stretch == 'linear'
+
+    def test_load_files_display(self, test_fits_file):
+        s = mcf.McfSession()
+        w = s.load_files([test_fits_file], stretches='asinh', vmins=0.2, vmaxs=3)
+        assert w == []
+        assert s.panels[0].stretch == 'asinh'
+        assert s.panels[0].vmin == pytest.approx(0.2)
+        assert s.panels[0].vmax == pytest.approx(3)
 
     def test_add_remove_panel(self):
         s = mcf.McfSession(n_panels=2)

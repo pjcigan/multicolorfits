@@ -14,8 +14,8 @@ repository-code: "https://github.com/pjcigan/multicolorfits"
 url: "https://github.com/pjcigan/multicolorfits"
 repository-artifact: "https://pypi.org/project/multicolorfits/"
 license: BSD-3-Clause
-version: "3.0.0"
-date-released: "2026-07-18"
+version: "3.1.0"
+date-released: "2026-09-15"
 keywords:
   - astronomy
   - visualization

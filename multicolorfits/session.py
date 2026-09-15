@@ -33,6 +33,7 @@ from .core import (
     nan_percentile_of_score,
     rescale_image,
     zscale_limits,
+    suggest_levels,
     McfHeader,
     colorize_image,
     hex_complement,
@@ -44,6 +45,38 @@ from .core import (
 )
 from .core.colorize import _intensity_to_grey_rgb
 from .core.io_output import annotate_provenance_header
+
+
+def _broadcast_panel_arg(value, n, name):
+    """Expand a scalar or length-*n* sequence. ``None`` stays ``None``."""
+    if value is None:
+        return None
+    if isinstance(value, (str, bytes)):
+        return [value] * n
+    if isinstance(value, (list, tuple)):
+        seq = list(value)
+    elif isinstance(value, np.ndarray) and value.ndim > 0:
+        seq = list(value)
+    else:
+        return [value] * n
+    if len(seq) == 1 and n != 1:
+        return seq * n
+    if len(seq) != n:
+        raise ValueError('%s has %d entries; expected %d (one per panel) or a single value'
+                         % (name, len(seq), n))
+    return seq
+
+
+def _assign_panel_display(panel, stretch=None, vmin=None, vmax=None):
+    """Set one panel's stretch and/or absolute limits. Unknown names raise."""
+    if stretch is not None:
+        name = str(stretch)
+        if name not in STRETCHES:
+            raise ValueError('Unknown stretch %r; expected one of %s'
+                             % (name, ', '.join(STRETCHES)))
+        panel.stretch = name
+    if vmin is not None or vmax is not None:
+        panel.set_limits(vmin, vmax)
 
 
 def _json_float(value, default=None):
@@ -68,7 +101,8 @@ from .core.colormix import COLORSPACES
 from .palettes import (
     PALETTES, list_palettes, list_palette_menu, get_palette, suggest_colors,
     colors_for_hue_pattern, rotate_colors_from_base, is_palette_name,
-    check_palette_colorblind,
+    check_palette_colorblind, palette_colorblind_report, resolve_palette_colors,
+    CVD_KINDS,
 )
 
 __all__ = ['PanelState', 'ComposeState', 'McfSession', 'reproject_available',
@@ -82,9 +116,6 @@ COMBINE_MODES = ('rgb',) + tuple(COLORSPACES) + ('ryb', 'cmyk')
 
 # Celestial frames offered for the "reproject / align" tools, in menu order.
 ALIGN_FRAMES = ('icrs', 'galactic', 'fk5', 'fk4', 'ecliptic')
-
-# CVD types checked by the palette colorblind report, in menu order.
-CVD_KINDS = ('deuteranopia', 'protanopia', 'tritanopia')
 
 # Panel-count bounds shared by McfSession and both GUIs.
 DEFAULT_N_PANELS = 4
@@ -243,6 +274,19 @@ class PanelState:
             return
         vmin, vmax = zscale_limits(self.data)
         self.set_limits(vmin, vmax)
+
+    def apply_suggested_levels(self, ignore_zeros=True):
+        """Set stretch and limits from suggest_levels. Returns the suggestion.
+
+        A starting point only: the fields stay editable. Does not run on load.
+        ``McfSession.apply_suggested_levels`` does the same for every loaded panel.
+        """
+        if self.data is None:
+            raise ValueError('No image loaded')
+        rec = suggest_levels(self.data, ignore_zeros=ignore_zeros)
+        self.stretch = rec['stretch']
+        self.set_limits(rec['vmin'], rec['vmax'])
+        return rec
 
     # ---------- header editing ----------
 
@@ -524,6 +568,100 @@ class McfSession:
             self.panels.pop()
         return len(self.panels)
 
+    def set_display(self, stretches=None, vmins=None, vmaxs=None, indices=None):
+        """
+        Set stretch and/or absolute vmin/vmax on panels.
+
+        This is the script form of the panel stretch dropdown and the vmin/vmax
+        fields. A single value applies to every targeted panel. A sequence is
+        matched to *indices* (default: panels that currently have data, in
+        index order). Omitted arguments are left unchanged. Unknown stretch
+        names raise ``ValueError`` before any panel is changed.
+
+        Parameters
+        ----------
+        stretches, vmins, vmaxs : scalar, sequence, or None
+            One value, or one entry per targeted panel.
+        indices : sequence of int or None
+            Panel indices to update. Default: every loaded panel.
+
+        Returns
+        -------
+        list of int
+            Panel indices that were updated.
+
+        Examples
+        --------
+        ::
+
+            s.set_display(stretches='asinh', vmins=0.1, vmaxs=12.0)
+            s.set_display(stretches=['asinh', 'sqrt'], vmins=[0.1, 0.2],
+                          vmaxs=[12, 8], indices=[0, 1])
+        """
+        idx = self.active_indices() if indices is None else [int(i) for i in indices]
+        if not idx:
+            return []
+        stretches = _broadcast_panel_arg(stretches, len(idx), 'stretches')
+        vmins = _broadcast_panel_arg(vmins, len(idx), 'vmins')
+        vmaxs = _broadcast_panel_arg(vmaxs, len(idx), 'vmaxs')
+        if stretches is not None:
+            for name in stretches:
+                if str(name) not in STRETCHES:
+                    raise ValueError('Unknown stretch %r; expected one of %s'
+                                     % (name, ', '.join(STRETCHES)))
+        for n, i in enumerate(idx):
+            _assign_panel_display(
+                self.panels[i],
+                stretch=None if stretches is None else stretches[n],
+                vmin=None if vmins is None else vmins[n],
+                vmax=None if vmaxs is None else vmaxs[n],
+            )
+        return idx
+
+    def apply_suggested_levels(self, indices=None, ignore_zeros=True, verbose=False):
+        """
+        Apply Auto levels to each loaded panel.
+
+        Calls :meth:`PanelState.apply_suggested_levels` (the same starting
+        stretch and vmin/vmax as the GUI **Auto levels** button). Fields stay
+        editable. This does not run on load.
+
+        Parameters
+        ----------
+        indices : sequence of int or None
+            Panels to update. Default: every panel that has data.
+        ignore_zeros : bool, optional
+            Passed to :func:`suggest_levels` (default True).
+        verbose : bool, optional
+            Print one line per panel (label, stretch, limits, reason).
+
+        Returns
+        -------
+        list of dict
+            One suggestion per panel, with ``index`` and ``label`` added.
+
+        Examples
+        --------
+        ::
+
+            recs = s.apply_suggested_levels(verbose=True)
+            # Same starting point as the GUI Auto levels button.
+        """
+        idx = self.active_indices() if indices is None else [int(i) for i in indices]
+        recs = []
+        for i in idx:
+            panel = self.panels[i]
+            rec = dict(panel.apply_suggested_levels(ignore_zeros=ignore_zeros))
+            rec['index'] = i
+            rec['label'] = panel.label or ''
+            recs.append(rec)
+            if verbose:
+                name = rec['label'] or ('panel %d' % (i + 1))
+                print('%s: %s  vmin=%s  vmax=%s' % (
+                    name, rec['stretch'], rec['vmin'], rec['vmax']))
+                print('  %s' % rec['reason'])
+        return recs
+
     def add_panel(self, color=None, label=''):
         """
         Append an empty panel slot (up to :data:`MAX_PANELS`).
@@ -604,7 +742,9 @@ class McfSession:
         return {'aligned': not mismatched, 'reference': ref,
                 'mismatched': mismatched, 'active': idx, 'shapes': shapes}
 
-    def align_panels(self, target='reference', reference=None, method='interp', scale=False):
+    def align_panels(self, target='reference', reference=None, method='interp',
+                     scale=False, north_up=False, rotation_deg=0.0, oversample=1.0,
+                     crop='none', order=1, blank_zeros=False):
         """
         Reproject all loaded panels onto a single common grid so they can be
         combined.  Preserves each panel's display settings.
@@ -624,34 +764,118 @@ class McfSession:
             reproject_image method: 'interp' (default), 'spi', or 'kapteyn'.
         scale : bool
             Flux-conserving reprojection (see reproject_image).
+        north_up : bool
+            Reproject onto a north-up grid in the reference frame (or ``target``
+            when that is a celestial frame) instead of the raw reference header.
+        rotation_deg, oversample, crop, order, blank_zeros
+            Passed to prep_layers when north_up, rotation, oversample, or crop
+            is requested. ``crop='overlap'`` trims NaN margins after the resample.
 
         Returns
         -------
         dict
             {'ok', 'changed' (indices), 'target', 'reference', 'shape', 'message'}
+
+        Examples
+        --------
+        ::
+
+            # Needs pip install "multicolorfits[reproject]"
+            report = s.align_panels(target='reference', north_up=True,
+                                    crop='overlap')
+            rgb = s.render_combined()
         """
-        from .core.stack_tools import align_stack
+        from .core.stack_tools import align_stack, prep_layers
 
         idx = self.active_indices()
-        if len(idx) < 2:
+        if len(idx) < 1:
+            return {'ok': True, 'changed': [], 'target': target, 'reference': None,
+                    'shape': None, 'message': 'No images loaded.'}
+        if len(idx) < 2 and not north_up and crop in (None, 'none', False):
             return {'ok': True, 'changed': [], 'target': target, 'reference': None,
                     'shape': None, 'message': 'Fewer than two images loaded; nothing to align.'}
         ref = idx[0] if reference is None else int(reference)
         if ref not in idx:
             raise ValueError('Reference panel %d has no image loaded' % (ref + 1))
         frame = None if target in (None, 'reference') else str(target).lower()
-
         images = [(self.panels[i].data, self.panels[i].header.astropy) for i in idx]
-        aligned = align_stack(images, reference=idx.index(ref), frame=frame,
-                              method=method, scale=scale)
-        for i, (data, hdr) in zip(idx, aligned):
-            self.panels[i].set_reprojected(data, hdr)
+        # Put the reference image first so prep_layers builds the target from it.
+        order_idx = [ref] + [i for i in idx if i != ref]
+        ordered = [(self.panels[i].data, self.panels[i].header.astropy) for i in order_idx]
+        use_prep = bool(north_up) or abs(float(rotation_deg or 0)) > 0 or float(oversample or 1) != 1 or str(crop).lower() in ('overlap', 'auto')
+        if use_prep:
+            prep_frame = frame if frame is not None else 'auto'
+            prepared = prep_layers(
+                ordered, north_up=north_up or abs(float(rotation_deg or 0)) > 0,
+                rotation_deg=rotation_deg, oversample=oversample, crop=crop or 'none',
+                frame=prep_frame, method=method, order=order, scale=scale,
+                blank_zeros=blank_zeros)
+            for i, (data, hdr) in zip(order_idx, prepared):
+                self.panels[i].set_reprojected(data, hdr)
+        else:
+            aligned = align_stack(images, reference=idx.index(ref), frame=frame,
+                                  method=method, scale=scale, order=order)
+            for i, (data, hdr) in zip(idx, aligned):
+                self.panels[i].set_reprojected(data, hdr)
 
         tgt_desc = ('reference panel %d' % (ref + 1) if frame is None
                     else "the '%s' frame" % frame)
+        extra = ''
+        if north_up:
+            extra += ', north-up'
+        if float(oversample or 1) != 1:
+            extra += ', oversample=%g' % float(oversample)
         return {'ok': True, 'changed': idx, 'target': target, 'reference': ref,
                 'shape': list(self.panels[idx[0]].data.shape),
-                'message': 'Aligned %d layers to %s.' % (len(idx), tgt_desc)}
+                'message': 'Aligned %d layers to %s%s.' % (len(idx), tgt_desc, extra)}
+
+    def blank_panels(self, zeros=False, indices=None):
+        """Replace non-finite (and optionally exact-zero) pixels with NaN."""
+        from .core.wcs_tools import blank_missing
+        idx = self.active_indices() if indices is None else list(indices)
+        for i in idx:
+            panel = self.panels[i]
+            if panel.data is None:
+                continue
+            panel.data = blank_missing(panel.data, zeros=zeros)
+        return {'ok': True, 'changed': idx}
+
+    def crop_panels(self, xbounds, ybounds):
+        """
+        Crop every loaded panel to inclusive data-pixel bounds.
+
+        Layers must already share a grid (same shape). Uses crop_image so
+        CRPIX follows the slice. Does not reproject.
+        """
+        from .core.wcs_tools import crop_image
+
+        report = self.grid_report()
+        if not report['aligned']:
+            raise ValueError(
+                'Layers do not share a pixel grid. Align them before cropping the view.')
+        idx = list(report['active'])
+        if not idx:
+            raise ValueError('No images loaded')
+        try:
+            x0, x1 = int(xbounds[0]), int(xbounds[1])
+            y0, y1 = int(ybounds[0]), int(ybounds[1])
+        except (TypeError, ValueError, IndexError):
+            raise ValueError('xbounds and ybounds must be [min, max] pixel indices')
+        if x1 < x0 or y1 < y0:
+            raise ValueError('crop bounds are inverted')
+        ny, nx = self.panels[idx[0]].data.shape
+        if x0 < 0 or y0 < 0 or x1 >= nx or y1 >= ny:
+            raise ValueError('crop bounds are outside the image')
+        if (x1 - x0 + 1) >= nx and (y1 - y0 + 1) >= ny:
+            return {'ok': True, 'changed': [], 'shape': [ny, nx],
+                    'message': 'View already covers the full image.'}
+        for i in idx:
+            panel = self.panels[i]
+            cropped, hdr = crop_image(panel.data, panel.header.astropy, [x0, x1], [y0, y1])
+            panel.set_reprojected(cropped, hdr)
+        return {'ok': True, 'changed': idx,
+                'shape': list(self.panels[idx[0]].data.shape),
+                'message': 'Cropped %d layer(s) to the visible view.' % len(idx)}
 
     # ---------- colors & palettes ----------
 
@@ -740,16 +964,7 @@ class McfSession:
         other name looks up a curated palette, padding with perceptual
         suggestions if the palette has fewer than ``n`` colors.
         """
-        if n < 1:
-            return []
-        if name in ('perceptual', 'suggest', 'auto'):
-            return suggest_colors(n)
-        if name in ('complement', 'triad', 'split', 'square', 'analogous', 'even'):
-            return colors_for_hue_pattern(name, n)
-        avail = get_palette(name)
-        if len(avail) >= n:
-            return list(avail[:n])
-        return list(avail) + suggest_colors(n)[len(avail):]
+        return resolve_palette_colors(name, n=n)
 
     def apply_palette(self, name):
         """
@@ -811,20 +1026,44 @@ class McfSession:
         """
         idx = self.active_indices()
         colors = [self.panels[i].color for i in idx]
-        report = {'ok': True, 'colors': colors, 'indices': idx, 'kinds': {}}
-        if len(colors) < 2:
-            for kind in CVD_KINDS:
-                report['kinds'][kind] = {'ok': True, 'failures': []}
-            return report
-        for kind in CVD_KINDS:
-            ok, failures = check_palette_colorblind(colors, kind=kind,
-                                                    min_distance=min_distance)
-            # Map active-list positions back to 1-based panel numbers
-            mapped = [(idx[a] + 1, idx[b] + 1, round(d, 1)) for a, b, d in failures]
-            report['kinds'][kind] = {'ok': ok, 'failures': mapped}
-            if not ok:
-                report['ok'] = False
+        base = palette_colorblind_report(colors, min_distance=min_distance)
+        report = {
+            'ok': base['ok'],
+            'colors': colors,
+            'indices': idx,
+            'kinds': {},
+        }
+        for kind, info in base['kinds'].items():
+            mapped = [(idx[a] + 1, idx[b] + 1, d)
+                      for a, b, d in info['failures']]
+            report['kinds'][kind] = {'ok': info['ok'], 'failures': mapped}
         return report
+
+    def preview_palette(self, colors=None, labels=None, n=None, **kwargs):
+        """
+        Build a palette preview figure for *colors* or the loaded panels.
+
+        See :func:`~multicolorfits.preview_palette`. Compose mode / blend /
+        gamma / background are taken from this session unless overridden in
+        *kwargs*.
+        """
+        from .palette_preview import preview_palette
+        if colors is None:
+            idx = self.active_indices()
+            if not idx:
+                raise ValueError('No images loaded and no colors given')
+            colors = [self.panels[i].color for i in idx]
+            if labels is None:
+                labels = [self.panels[i].label or ('Image %d' % (i + 1))
+                          for i in idx]
+        kwargs.setdefault('mode', getattr(self.compose, 'combine_mode', 'rgb') or 'rgb')
+        kwargs.setdefault('blend', getattr(self.compose, 'combine_blend', 'screen') or 'screen')
+        kwargs.setdefault('gamma', self.compose.gamma)
+        kwargs.setdefault(
+            'combine_background',
+            getattr(self.compose, 'combine_background', 'black') or 'black')
+        kwargs.setdefault('inverse', bool(self.compose.inverse))
+        return preview_palette(colors, n=n, labels=labels, **kwargs)
 
     @property
     def common_header(self):
@@ -859,6 +1098,13 @@ class McfSession:
         -------
         array
             Combined RGB image [ypixels, xpixels, 3] in [0..1]
+
+        Examples
+        --------
+        ::
+
+            preview = s.render_combined(preview=True)   # interactive
+            rgb = s.render_combined()                   # full resolution
         """
         active = self.active_panels()
         if not active:
@@ -1162,6 +1408,12 @@ class McfSession:
         replays the ``reproject_image`` step so the exported result matches the
         on-screen image exactly.  When no reprojection was needed the script
         stays lean and just uses the first image's on-disk header for the WCS.
+
+        Examples
+        --------
+        ::
+
+            open('recreate.py', 'w').write(s.export_script())
         """
         gamma = self.compose.gamma
         active = [(i, p) for i, p in enumerate(self.panels, start=1) if p.in_use]
@@ -1327,7 +1579,8 @@ class McfSession:
         apply_bare_plot_style(self.compose, transparent=transparent)
         return self
 
-    def load_files(self, paths, colors=None, labels=None):
+    def load_files(self, paths, colors=None, labels=None,
+                   stretches=None, vmins=None, vmaxs=None):
         """
         Load FITS paths into successive panels (growing the session if needed,
         up to :data:`MAX_PANELS`).
@@ -1337,14 +1590,30 @@ class McfSession:
         paths : sequence of str
             FITS file paths.
         colors : sequence of str or None
-            Optional hex colors, one per path.
+            Optional hex colors, one per path (or one color for every path).
         labels : sequence of str or None
-            Optional channel labels.
+            Optional channel labels, one per path (or one label for every path).
+        stretches, vmins, vmaxs : scalar, sequence, or None
+            Optional display settings applied after a successful load, aligned
+            with *paths*. Same rules as :meth:`set_display`. After load,
+            limits otherwise stay at the data min/max and the stretch stays
+            ``linear``. Use :meth:`apply_suggested_levels` for a histogram
+            starting point instead of passing values here.
 
         Returns
         -------
         list of str
             Warnings for paths that could not be loaded.
+
+        Examples
+        --------
+        ::
+
+            warnings = s.load_files(
+                ['a.fits', 'b.fits'],
+                colors=['#E4002B', '#0088FF'], labels=['R', 'B'],
+                stretches='asinh')
+            # warnings == [] means every path loaded
         """
         paths = list(paths)
         colors = list(colors) if colors is not None else []
@@ -1356,6 +1625,15 @@ class McfSession:
         if len(paths) > limit:
             warnings.append('Only the first %d of %d paths fit within MAX_PANELS=%d'
                             % (limit, len(paths), MAX_PANELS))
+        stretch_seq = _broadcast_panel_arg(stretches, limit, 'stretches') if limit else None
+        vmin_seq = _broadcast_panel_arg(vmins, limit, 'vmins') if limit else None
+        vmax_seq = _broadcast_panel_arg(vmaxs, limit, 'vmaxs') if limit else None
+        if stretch_seq is not None:
+            for name in stretch_seq:
+                if str(name) not in STRETCHES:
+                    raise ValueError('Unknown stretch %r; expected one of %s'
+                                     % (name, ', '.join(STRETCHES)))
+        loaded = []
         for i, path in enumerate(paths[:limit]):
             try:
                 self.panels[i].load_fits(path)
@@ -1363,8 +1641,16 @@ class McfSession:
                     self.panels[i].color = colors[i]
                 if i < len(labels):
                     self.panels[i].label = labels[i]
+                loaded.append(i)
             except Exception as exc:
                 warnings.append('Panel %d: could not load %s (%s)' % (i + 1, path, exc))
+        for i in loaded:
+            _assign_panel_display(
+                self.panels[i],
+                stretch=None if stretch_seq is None else stretch_seq[i],
+                vmin=None if vmin_seq is None else vmin_seq[i],
+                vmax=None if vmax_seq is None else vmax_seq[i],
+            )
         return warnings
 
     def sample_at_pixel(self, x, y):

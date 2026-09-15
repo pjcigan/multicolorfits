@@ -2,7 +2,15 @@ Compositing
 ===========
 
 Perceptual and subtractive mixers, backgrounds, and the shared dispatcher.
-Concepts: :doc:`/guide/color_compositing`.
+Concepts: :doc:`/guide/color_compositing`. Job snippets:
+:doc:`/capabilities/index`. Recipes: ``mcf.recipes('lab')``,
+``mcf.recipes('cutout')``.
+
+Prefer :func:`~multicolorfits.combine_colorized_layers` when you want the
+same ``mode`` / ``blend`` / ``background`` switch the GUI and session use.
+Transparent cutouts and deblend helpers are listed at the bottom of this
+page; narrative: :doc:`/guide/saving_outputs`,
+:doc:`/examples/m74_transparent_cutout`.
 
 .. currentmodule:: multicolorfits
 

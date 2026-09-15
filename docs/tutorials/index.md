@@ -3,7 +3,8 @@
 Runnable tutorials are jupytext **percent** `.py` sources paired with `.ipynb`
 (see the notebook download on Read the Docs / GitHub).  Screenshot-oriented
 pages are MyST markdown. Fuller narrative walkthroughs with published figures
-live under {doc}`../examples/index`.
+live under {doc}`../examples/index`. Job-oriented “I want X” snippets:
+{doc}`../capabilities/index`.
 
 ```{toctree}
 :maxdepth: 1
@@ -11,6 +12,7 @@ live under {doc}`../examples/index`.
 getting_started
 ngc602_same_grid
 wlm_align_reproject
+prepare_and_align
 colorspace_compositing
 backgrounds_and_ryb
 gui_web_walkthrough
@@ -25,6 +27,7 @@ session_export_script
 | Getting started | notebook | Minimal `McfSession` / Lab |
 | NGC 602 | notebook | Same-grid OpenFITS → {doc}`../examples/ngc602` |
 | WLM | notebook | Crop, align, combine → {doc}`../examples/wlm` |
+| Prepare and align | notebook | Tidy header, north-up, oversample, overlap crop |
 | Color-space compositing | markdown | Pointer → {doc}`../examples/colorspace_comparison` |
 | Backgrounds & RYB | notebook | White/transparent canvas, paint mix |
 | GUI walkthrough | markdown | Browser GUI layout & workflow |

@@ -37,6 +37,12 @@ __all__ = [
     'crop_cube',
     'crop_image_sky',
     'crop_cube_sky',
+    'tidy_header',
+    'wcs_is_flipped',
+    'east_increases_right',
+    'describe_header',
+    'blank_missing',
+    'crop_to_overlap',
 ]
 
 
@@ -797,6 +803,14 @@ def crop_image(datain, hdrin, xbounds, ybounds, newref=None, savenew=False, over
     -------
     array, astropy.io.fits.header
         cropdata, crophdr
+
+    Examples
+    --------
+    ::
+
+        import multicolorfits as mcf
+        cropdata, crophdr = mcf.crop_image(
+            data, header, xbounds=[100, 400], ybounds=[120, 420])
     """
     if len(datain.shape) > 3: raise Exception('Data array has 4 or more dimensions - reduce them to 2!')
     if len(datain.shape) == 2: pass
@@ -945,3 +959,219 @@ def crop_cube_sky(datain, hdrin, centerRADEC, radius_asec, zbounds=[0, None], ne
         return cropdat, crophdr, centerpixcrop
     else:
         return cropdat, crophdr
+
+
+_PC_KEYS = ('PC1_1', 'PC1_2', 'PC2_1', 'PC2_2')
+_CD_KEYS = ('CD1_1', 'CD1_2', 'CD2_1', 'CD2_2')
+_CROTA_KEYS = ('CROTA', 'CROTA1', 'CROTA2')
+
+
+def tidy_header(hdrin, warn_flip=True):
+    """Return a copy of a header that is easier to use in processing scripts.
+
+    Drops axis-3/4 cards, coerces integer WCS metadata, and removes
+    conflicting linear-transform cards (a CD matrix alongside PC+CDELT, and
+    orphan CROTA when a matrix is present). SIP distortion cards are left
+    intact. This does not reproject or change orientation — use
+    make_rotated_header for that.
+
+    warn_flip : bool
+        Warn if the celestial WCS is mirrored (det of the pixel-scale matrix
+        > 0). A normal east-left image has det < 0; a reflection does not.
+        North-up reprojection still forces east-left unless you opt out.
+
+    Examples
+    --------
+    ::
+
+        import multicolorfits as mcf
+        hdr = mcf.tidy_header(header)          # copy; drops conflicting PC/CD
+        info = mcf.describe_header(hdr, name='layer', verbose=False)
+    """
+    hdr = force_header_floats(force_header_2d(hdrin.copy()))
+    has_pc = any(k in hdr for k in _PC_KEYS)
+    has_cd = any(k in hdr for k in _CD_KEYS)
+    if has_pc and has_cd:
+        for key in _CD_KEYS:
+            hdr.pop(key, None)
+        warnings.warn(
+            'tidy_header: dropped CD matrix cards because PC and CDELT were also present.',
+            UserWarning, stacklevel=2)
+        has_cd = False
+    if has_pc or has_cd:
+        dropped = [k for k in _CROTA_KEYS if k in hdr]
+        for key in dropped:
+            del hdr[key]
+        if dropped:
+            warnings.warn(
+                'tidy_header: dropped %s because a PC or CD matrix is present.'
+                % ', '.join(dropped), UserWarning, stacklevel=2)
+    if warn_flip:
+        try:
+            if wcs_is_flipped(hdr):
+                warnings.warn(
+                    'tidy_header: celestial WCS is mirrored (not a pure rotation). '
+                    'make_rotated_header / reproject_north_up force east-left unless '
+                    'allow_flip=True.',
+                    UserWarning, stacklevel=2)
+        except Exception:
+            pass
+    return hdr
+
+
+def wcs_is_flipped(hdrin):
+    """True when the celestial WCS is a reflection, not a pure rotation.
+
+    The pixel-scale matrix of a normal east-left image has negative
+    determinant (longitude CDELT is negative). A mirror has the opposite
+    sign. A positive CDELT1 alone is not enough — a PC/CD matrix can carry
+    the scale, and a negative PC determinant can cancel a positive CDELT1.
+    """
+    wcs = pywcs.WCS(hdrin).celestial
+    return float(np.linalg.det(wcs.pixel_scale_matrix)) > 0
+
+
+def east_increases_right(hdrin):
+    """True when increasing longitude maps to increasing pixel x.
+
+    Probes the world-to-pixel mapping rather than trusting the sign of CDELT1.
+    """
+    wcs = pywcs.WCS(hdrin).celestial
+    lon0 = float(wcs.wcs.crval[0])
+    lat0 = float(wcs.wcs.crval[1])
+    x0 = float(np.ravel(wcs.world_to_pixel_values(lon0, lat0)[0])[0])
+    x1 = float(np.ravel(wcs.world_to_pixel_values(lon0 + 1e-4, lat0)[0])[0])
+    return x1 > x0
+
+
+def describe_header(hdrin, name='', verbose=True):
+    """Summarize a celestial header and optionally print the same fields.
+
+    For a pixel-distribution stretch suggestion, use :func:`describe_image`
+    (header summary plus :func:`suggest_levels`).
+
+    Parameters
+    ----------
+    hdrin : header
+        FITS header or :class:`~multicolorfits.core.McfHeader`.
+    name : str, optional
+        Label printed next to the summary.
+    verbose : bool, optional
+        Print to stdout (default True). Pass False to build the dict only.
+
+    Returns
+    -------
+    dict
+        Frame, CTYPEs, size, CRVALs, pixel scale, flip flags, and beam
+        when present.
+
+    Examples
+    --------
+    ::
+
+        import multicolorfits as mcf
+        info = mcf.describe_header(header, name='IR', verbose=False)
+        print(info['frame'], info['pixscale_arcsec'])
+    """
+    from .skyframes import header_frame_name
+    hdr = hdrin
+    info = {
+        'name': name or '',
+        'frame': header_frame_name(hdr),
+        'ctype1': str(hdr.get('CTYPE1', '')),
+        'ctype2': str(hdr.get('CTYPE2', '')),
+        'naxis1': int(hdr.get('NAXIS1', 0) or 0),
+        'naxis2': int(hdr.get('NAXIS2', 0) or 0),
+        'crval1': float(hdr['CRVAL1']) if 'CRVAL1' in hdr else None,
+        'crval2': float(hdr['CRVAL2']) if 'CRVAL2' in hdr else None,
+    }
+    try:
+        cd1, cd2 = get_cdelts(hdr)
+        info['cdelt1_deg'] = float(cd1)
+        info['cdelt2_deg'] = float(cd2)
+        info['pixscale_arcsec'] = (abs(float(cd1)) * 3600.0, abs(float(cd2)) * 3600.0)
+    except Exception:
+        info['cdelt1_deg'] = info['cdelt2_deg'] = None
+        info['pixscale_arcsec'] = None
+    try:
+        info['flipped'] = bool(wcs_is_flipped(hdr))
+        info['east_increases_right'] = bool(east_increases_right(hdr))
+    except Exception:
+        info['flipped'] = None
+        info['east_increases_right'] = None
+    if 'BMAJ' in hdr and 'BMIN' in hdr:
+        info['beam_arcsec'] = (
+            float(hdr['BMAJ']) * 3600.0,
+            float(hdr['BMIN']) * 3600.0,
+            float(hdr['BPA']) if 'BPA' in hdr else 0.0,
+        )
+    else:
+        info['beam_arcsec'] = None
+    if verbose:
+        label = (' (%s)' % name) if name else ''
+        print('Header%s' % label)
+        print('  Frame:     %s  (%s, %s)' % (info['frame'], info['ctype1'], info['ctype2']))
+        if info['crval1'] is not None:
+            print('  Center:    %.6f, %.6f deg' % (info['crval1'], info['crval2']))
+        if info['pixscale_arcsec']:
+            print('  Scale:     %.4f" x %.4f" / pix' % info['pixscale_arcsec'])
+        print('  Size:      %d x %d' % (info['naxis1'], info['naxis2']))
+        if info['flipped'] is not None:
+            print('  Flipped:   %s   (east increases right: %s)' % (
+                info['flipped'], info['east_increases_right']))
+        if info['beam_arcsec']:
+            print('  Beam:      %.3f" x %.3f", PA %.2f deg' % info['beam_arcsec'])
+    return info
+
+
+def blank_missing(data, zeros=False):
+    """Return a float copy with non-finite pixels set to NaN.
+
+    zeros : bool
+        Also treat exact zeros as missing (chip gaps). Do not enable this for
+        science images that are legitimately zero.
+    """
+    out = np.array(data, dtype=float, copy=True)
+    bad = ~np.isfinite(out)
+    if zeros:
+        bad = bad | (out == 0)
+    out[bad] = np.nan
+    return out
+
+
+def crop_to_overlap(arrays, hdr, pad=0):
+    """Crop same-shaped 2D images to the box where every layer is finite.
+
+    Shifts CRPIX to match. Useful after a rotated reprojection, when NaN
+    margins would otherwise dominate stretches.
+
+    pad : int
+        Extra pixels kept around the overlap, clipped to the image.
+    """
+    if not arrays:
+        raise ValueError('crop_to_overlap: no arrays')
+    valid = None
+    for arr in arrays:
+        plane = np.asarray(arr)
+        if plane.ndim == 3 and plane.shape[-1] in (3, 4):
+            finite = np.isfinite(plane).any(axis=-1)
+        elif plane.ndim != 2:
+            raise ValueError('crop_to_overlap expects 2D images (got shape %s)' % (plane.shape,))
+        else:
+            finite = np.isfinite(plane)
+        valid = finite if valid is None else (valid & finite)
+    ys, xs = np.where(valid)
+    if xs.size == 0:
+        raise ValueError('crop_to_overlap: no pixels are finite in every layer')
+    ny, nx = valid.shape
+    pad = int(pad or 0)
+    x0 = max(0, int(xs.min()) - pad)
+    x1 = min(nx - 1, int(xs.max()) + pad)
+    y0 = max(0, int(ys.min()) - pad)
+    y1 = min(ny - 1, int(ys.max()) + pad)
+    cropped = []
+    hdr_out = None
+    for arr in arrays:
+        data, hdr_out = crop_image(np.asarray(arr), hdr, [x0, x1], [y0, y1])
+        cropped.append(data)
+    return cropped, hdr_out

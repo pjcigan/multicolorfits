@@ -9,11 +9,14 @@ chrome for assets that only exist as a single light PNG (GUI screenshots,
 legacy gallery stills without a hand-tuned dark).
 
 Also builds theme pairs for the classic Gallery page
-(``docs/_static/examples/*_{light,dark}.png``).
+(``docs/_static/examples/*_{light,dark}.png``), and dual-renders the
+guide mosaic layout demos under ``docs/_static/mosaics/`` (synthetic
+cont/Ha/OIII/SII session — never chrome-remapped).
 
 Usage (from repo root or docs/)::
 
     python docs/make_docs_figures.py
+    python docs/make_docs_figures.py --mosaics-only
 """
 
 from __future__ import annotations
@@ -46,11 +49,7 @@ ASSETS = {
         'paintmix_demo.png',
         'swatch_legend_demo.png',
     ],
-    'mosaics': [
-        'component_mosaic/mosaic_top_max3.png',
-        'component_mosaic/mosaic_top_max2.png',
-        'component_mosaic/mosaic_left_max3.png',
-    ],
+    # mosaics: dual-rendered by render_mosaic_layout_figures() (not remapped)
     'gui': [
         'gui_colorspace_modes.png',
         'gui_new_compositing.png',
@@ -203,16 +202,111 @@ def write_gallery_pairs() -> None:
         write_pair(src, src_dir / stem, dark_src=dark_src)
 
 
+def render_mosaic_layout_figures() -> None:
+    """Dual-render guide mosaic layout demos (never chrome-remap).
+
+    Synthetic 4-band session matching the cont / Ha / OIII / SII layout
+    figures in ``docs/guide/figures_and_mosaics.md``.  Writes
+    ``docs/_static/mosaics/*_{light,dark}.png``.
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+    import multicolorfits as mcf
+
+    light_face, dark_face = 'white', '#14161b'
+    dark_text = '#d8dce4'
+    out = STATIC / 'mosaics'
+    out.mkdir(parents=True, exist_ok=True)
+
+    def _blob(nx, ny, seed, scale=8.0):
+        rng = np.random.default_rng(seed)
+        y, x = np.mgrid[0:ny, 0:nx]
+        blob = np.exp(-(((x - nx / 2.0) / (nx / scale)) ** 2
+                        + ((y - ny / 2.0) / (ny / scale)) ** 2))
+        return blob + rng.normal(0, 0.04, size=(ny, nx))
+
+    print('\n[mosaics — dual-render]')
+    s = mcf.McfSession(n_panels=4)
+    bands = [
+        ('cont', '#DEA215', 0),
+        ('Ha', '#E24A33', 1),
+        ('OIII', '#2CA02C', 2),
+        ('SII', '#1F77B4', 3),
+    ]
+    nx = ny = 96
+    hdr = None
+    try:
+        import astropy.io.fits as pyfits
+        hdr = pyfits.Header()
+        hdr['NAXIS'] = 2
+        hdr['NAXIS1'] = nx
+        hdr['NAXIS2'] = ny
+        hdr['CTYPE1'] = 'RA---TAN'
+        hdr['CTYPE2'] = 'DEC--TAN'
+        hdr['CRPIX1'] = nx / 2.0
+        hdr['CRPIX2'] = ny / 2.0
+        hdr['CRVAL1'] = 150.0
+        hdr['CRVAL2'] = -30.0
+        hdr['CDELT1'] = -0.0002777778
+        hdr['CDELT2'] = 0.0002777778
+        hdr['RADESYS'] = 'FK5'
+        hdr['EQUINOX'] = 2000.0
+    except Exception:
+        hdr = None
+    for i, (label, color, seed) in enumerate(bands):
+        s.panels[i].set_data(_blob(nx, ny, seed), hdr)
+        s.panels[i].color = color
+        s.panels[i].label = label
+        s.panels[i].stretch = 'linear'
+    s.compose.combine_mode = 'lab'
+    s.compose.combine_blend = 'screen'
+    s.compose.gamma = 2.2
+    s.compose.combine_background = 'black'
+    s.compose.show_legend = False
+    s.compose.show_combo_swatch = False
+    rgb = s.render_combined()
+
+    layouts = (
+        ('mosaic_top_max3', dict(components='top', max_per_line=3)),
+        ('mosaic_top_max2', dict(components='top', max_per_line=2)),
+        ('mosaic_left_max3', dict(components='left', max_per_line=3)),
+    )
+    for stem, kw in layouts:
+        for suffix, face, tick in (
+            ('light', light_face, '0.9'),
+            ('dark', dark_face, dark_text),
+        ):
+            s.compose.facecolor = face
+            s.compose.tickcolor = tick
+            fig, _axes = mcf.make_component_mosaic(
+                s, combined=rgb, ticks='minimal', facecolor=face,
+                label_loc='upper left', **kw,
+            )
+            path = out / f'{stem}_{suffix}.png'
+            fig.savefig(path, dpi=120, facecolor=face, bbox_inches='tight')
+            plt.close(fig)
+            print(f'  {path.relative_to(ROOT)}')
+
+
 def refresh_autogen_darks() -> None:
     """Re-derive remapped ``*_dark.png`` from ``*_light.png`` (legacy only).
 
-    Skips gallery stems with a hand-tuned ``images/<stem>_dark.png``, and
-    skips compositing stems that already have a dual-rendered dark in
-    ``examples/output/`` (so this does not overwrite true theme renders).
+    Skips gallery stems with a hand-tuned ``images/<stem>_dark.png``, skips
+    dual-rendered dirs (``showcase/``, ``mosaics/``), and skips compositing
+    stems that already have a dual-rendered dark in ``examples/output/``
+    (so this does not overwrite true theme renders).
+
+    Remapped darks look speckled on WCS spines / thick white frames — prefer
+    dual-rendering whenever a generator can produce both themes.
     """
     hand_tuned = {p.name.replace('_dark.png', '') for p in IMAGES.glob('*_dark.png')}
+    skip_dirs = {'showcase', 'mosaics'}  # dual-rendered; never chrome-remap
     print('\n[refresh auto darks from *_light.png]')
     for light in sorted(STATIC.rglob('*_light.png')):
+        if light.parent.name in skip_dirs:
+            print(f'  SKIP dual-render dir {light.relative_to(STATIC)}')
+            continue
         stem = light.name.replace('_light.png', '')
         if stem in hand_tuned and light.parent.name == 'examples':
             print(f'  SKIP hand-tuned {light.relative_to(STATIC)}')
@@ -220,7 +314,6 @@ def refresh_autogen_darks() -> None:
         # Prefer dual-rendered dark from examples/output when present.
         out_dark = SRC / f'{stem}_dark.png'
         if not out_dark.is_file():
-            # mosaics live under a subdir in examples/output
             matches = list(SRC.rglob(f'{stem}_dark.png'))
             out_dark = matches[0] if matches else out_dark
         dark = light.with_name(stem + '_dark.png')
@@ -239,9 +332,16 @@ def main() -> None:
     parser.add_argument(
         '--refresh-darks', action='store_true',
         help='Refresh *_dark.png from pre-rendered output or remap from *_light.png')
+    parser.add_argument(
+        '--mosaics-only', action='store_true',
+        help='Only dual-render docs/_static/mosaics/ layout figures')
     args = parser.parse_args()
     if args.refresh_darks:
         refresh_autogen_darks()
+        print('\nDone.')
+        return
+    if args.mosaics_only:
+        render_mosaic_layout_figures()
         print('\nDone.')
         return
     if not SRC.is_dir():
@@ -254,6 +354,7 @@ def main() -> None:
             src = SRC / name
             stem = Path(name).stem
             write_pair(src, STATIC / subdir / stem)
+    render_mosaic_layout_figures()
     write_gallery_pairs()
     print('\nDone.')
 

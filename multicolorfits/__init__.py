@@ -27,7 +27,7 @@ copy-paste code.  The same catalog is published as ``llms.txt`` /
 """
 
 __author__ = "Phil Cigan"
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 # Agent- / newcomer-facing orientation (mcf.overview() / mcf.recipes()).
 from ._overview import overview, recipes  # noqa: E402,F401
@@ -44,6 +44,9 @@ from .core import (  # noqa: F401
     make_norm,
     rescale_image,
     zscale_limits,
+    suggest_levels,
+    describe_image,
+    describe_images,
     # header / WCS / coordinates / cropping
     McfHeader,
     as_mcfheader,
@@ -75,6 +78,12 @@ from .core import (  # noqa: F401
     crop_cube,
     crop_image_sky,
     crop_cube_sky,
+    tidy_header,
+    wcs_is_flipped,
+    east_increases_right,
+    describe_header,
+    blank_missing,
+    crop_to_overlap,
     # reprojection (lazy optional deps)
     reproject_image,
     reproject_cube,
@@ -137,12 +146,24 @@ from .core import (  # noqa: F401
     reproject_to_frame,
     reproject_to_galactic,
     optimal_common_header,
+    make_rotated_header,
+    make_north_up_header,
+    reproject_to_rotation,
+    reproject_north_up,
     # Stack alignment and interactive preview downsampling
     reproject_stack_to_header,
     reproject_stack_to_reference,
     align_stack,
     downsample_for_preview,
+    prep_layers,
+    convolution_beam,
+    match_beam,
+    match_beam_to_header,
+    convolve2Dgaus,
+    convolve2Dgaus_matchhdr,
     annotate_provenance_header,
+    read_fits,
+    write_fits,
 )
 
 # Backward-compatible v2.x names.  Every legacy alias lives in compat.py
@@ -157,11 +178,16 @@ from .session import (  # noqa: F401
 from .core.colormix import COLORSPACES, BLENDS  # noqa: F401
 from . import palettes  # noqa: F401
 from .palettes import get_palette, list_palettes, suggest_colors  # noqa: F401
+from .palettes import (  # noqa: F401
+    resolve_palette_colors, palette_colorblind_report, CVD_KINDS,
+    colors_from_hsv, colors_from_hue_angles, colors_for_hue_pattern,
+)
 from .pipeline import combine_layers, combine_from_files, save_combined  # noqa: F401
 from .figures import (  # noqa: F401
     apply_bare_plot_style, apply_bare_axes, make_component_mosaic,
     make_combined_figure, setup_combined_axes,
 )
+from .palette_preview import preview_palette, PalettePreview  # noqa: F401
 from . import overlays  # noqa: F401
 
 
